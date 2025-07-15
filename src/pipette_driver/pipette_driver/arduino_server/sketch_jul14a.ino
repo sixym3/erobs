@@ -5,10 +5,7 @@
 #include <ArduinoRS485.h>
 #include <Adafruit_NeoPixel.h>
 
-#ifdef __AVR__
-  #include <avr/power.h>
-#endif
-#define PIN      12
+#define PIN 12
 #define NUMPIXELS 7
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -24,8 +21,19 @@ Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 // Global variables
 unsigned long lastHeartbeat = 0;
 String receiveBuffer = "";
-bool ledState = false;
+bool builtInLEDState = false;
 unsigned long startTime = 0;
+
+// New global variables for NeoPixel state
+uint8_t lastR = 0, lastG = 0, lastB = 0;
+uint8_t lastBrightness = 50; // Default brightness
+
+// Function prototypes
+void setLEDColor(uint8_t r, uint8_t g, uint8_t b);
+void setLEDBrightness(uint8_t brightness);
+void turnOffLEDs();
+void turnOnLEDs();
+String getHeartbeatStatus();
 
 void setup() {
   // Initialize LED
@@ -48,12 +56,14 @@ void setup() {
   
   // Send startup message
   sendMessage("Arduino RS485 Receiver Ready");
-  sendMessage("Using pins 0 (RX) and 1 (TX)");
-  sendMessage("Heartbeat interval: 5 seconds");
+  sendMessage("Using pins " + String(0) + " (RX) and " + String(1) + " (TX)");
+  sendMessage("Heartbeat interval: " + String(HEARTBEAT_INTERVAL / 1000) + " seconds");
   
   // Record start time
   startTime = millis();
   pixels.begin();
+  setLEDBrightness(lastBrightness);
+  setLEDColor(0, 0, 0); // Start off
 }
 
 void loop() {
@@ -79,16 +89,12 @@ void loop() {
     lastHeartbeat = currentMillis;
     
     // Send heartbeat message
-    unsigned long uptime = (currentMillis - startTime) / 1000;
-    String heartbeatMsg = "Heartbeat - Uptime: " + String(uptime) + " seconds, LED: " + (ledState ? "ON" : "OFF");
-    sendMessage(heartbeatMsg);
+    sendMessage(getHeartbeatStatus());
     
-    // Brief LED pulse for heartbeat (only if LED is off)
-    if(!ledState) {
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(HEARTBEAT_DURATION);
-      digitalWrite(LED_BUILTIN, LOW);
-    }
+    // Brief LED pulse for heartbeat
+    digitalWrite(LED_BUILTIN, !builtInLEDState);
+    delay(HEARTBEAT_DURATION);
+    digitalWrite(LED_BUILTIN, !builtInLEDState);
   }
 }
 
@@ -98,31 +104,46 @@ void processCommand(String command) {
   
   // Echo the received command
   sendMessage("Received command: " + command);
-  
-  // Check for specific commands
-  if(command == "V" || command == "v") {
-    // Toggle LED
-    ledState = !ledState;
-    digitalWrite(LED_BUILTIN, ledState);
-    sendMessage("LED toggled - Now: " + String(ledState ? "ON" : "OFF"));
-  } else if(command == "TEST") {
-    sendMessage("Test command acknowledged");
-    pixels.clear();
-    for(int i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, pixels.Color(0, 150, 0));
-      pixels.show();
-      delay(DELAYVAL);
+
+  // Command handling for LED strip control
+  if (command.startsWith("SETCOLOR")) {
+    int r, g, b;
+    int n = sscanf(command.c_str(), "SETCOLOR %d %d %d", &r, &g, &b);
+    if (n == 3 && r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+      setLEDColor((uint8_t)r, (uint8_t)g, (uint8_t)b);
+      sendMessage("Set LED color to R:" + String(r) + " G:" + String(g) + " B:" + String(b));
+    } else {
+      sendMessage("Invalid SETCOLOR command. Usage: SETCOLOR r g b");
     }
-  } else if(command == "HELLO") {
-    sendMessage("Hello from Arduino!");
+  } else if (command.startsWith("SETBRIGHTNESS")) {
+    int brightness;
+    int n = sscanf(command.c_str(), "SETBRIGHTNESS %d", &brightness);
+    if (n == 1 && brightness >= 0 && brightness <= 255) {
+      setLEDBrightness((uint8_t)brightness);
+      sendMessage("Set LED brightness to " + String(brightness));
+    } else {
+      sendMessage("Invalid SETBRIGHTNESS command. Usage: SETBRIGHTNESS x (0-255)");
+    }
+  } else if (command == "LEDOFF") {
+    turnOffLEDs();
+    sendMessage("LED strip turned off");
+  } else if (command == "LEDON") {
+    turnOnLEDs();
+    sendMessage("LED strip turned on");
+  }
+  
+  
+  // Base Commands
+  if(command == "V" || command == "v") {
+    // Toggle Built-in LED
+    builtInLEDState = !builtInLEDState;
+    digitalWrite(LED_BUILTIN, builtInLEDState);
+    sendMessage("Built-in LED toggled - Now: " + String(builtInLEDState ? "ON" : "OFF"));
   } else if(command.startsWith("CMD")) {
     sendMessage("Processing command: " + command);
-    pixels.clear();
-    pixels.show();
   } else if(command == "STATUS") {
     // Status command to check system state
-    unsigned long uptime = (millis() - startTime) / 1000;
-    sendMessage("Status: LED=" + String(ledState ? "ON" : "OFF") + ", Uptime=" + String(uptime) + "s");
+    sendMessage(getHeartbeatStatus());
   } else {
     sendMessage("Unknown command: " + command);
   }
@@ -132,4 +153,35 @@ void sendMessage(String message) {
   RS485.beginTransmission();
   RS485.println(message);
   RS485.endTransmission();
+}
+
+// New functions for LED control
+void setLEDColor(uint8_t r, uint8_t g, uint8_t b) {
+  lastR = r;
+  lastG = g;
+  lastB = b;
+  for (int i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(i, pixels.Color(r, g, b));
+  }
+  pixels.show();
+}
+
+void setLEDBrightness(uint8_t brightness) {
+  lastBrightness = brightness;
+  pixels.setBrightness(brightness);
+  // Re-apply last color to update brightness
+  setLEDColor(lastR, lastG, lastB);
+}
+
+void turnOffLEDs() {
+  setLEDColor(0, 0, 0);
+}
+
+void turnOnLEDs() {
+  setLEDColor(lastR, lastG, lastB);
+}
+
+String getHeartbeatStatus() {
+  unsigned long uptime = (millis() - startTime) / 1000;
+  return "Status: Built-in LED=" + String(builtInLEDState ? "ON" : "OFF") + ", Uptime=" + String(uptime) + "s";
 }
