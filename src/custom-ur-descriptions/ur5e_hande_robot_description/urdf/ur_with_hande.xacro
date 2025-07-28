@@ -50,11 +50,7 @@
    <xacro:arg name="sim_ignition" default="false" />
    <xacro:arg name="simulation_controllers" default="" />
 
-<<<<<<< HEAD
-   <xacro:arg name="mock_hardware" default="falsetruetruetrue" />
-=======
    <xacro:arg name="mock_hardware" default="true" />
->>>>>>> b85940dbf717446f0a3b7f71116d27ca8fd210cd
 
    <!-- initial position for simulations (Fake Hardware, Gazebo, Ignition) -->
    <xacro:arg name="initial_positions_file" default="$(find ur_description)/config/initial_positions.yaml"/>
