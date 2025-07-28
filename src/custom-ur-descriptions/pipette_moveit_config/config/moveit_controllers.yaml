@@ -1,0 +1,15 @@
+# MoveIt uses this configuration for controller management
+
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - pipette_controller
+
+  pipette_controller:
+    type: FollowJointTrajectory
+    joints:
+      - plunger_joint
+      - tip_eject_joint
+    action_ns: follow_joint_trajectory
+    default: true

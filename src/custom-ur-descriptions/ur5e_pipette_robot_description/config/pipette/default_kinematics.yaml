@@ -1,0 +1,34 @@
+# Default kinematics parameters for pipette tool
+
+kinematics:
+  plunger_joint:
+    max_position: 0.010  # 10mm max travel
+    min_position: 0.000
+    max_velocity: 0.01   # 10mm/s max speed
+    max_acceleration: 0.05
+    default_position: 0.0
+    
+  tip_eject_joint:
+    max_position: 0.005  # 5mm max travel
+    min_position: 0.000
+    max_velocity: 0.01   # 10mm/s max speed
+    max_acceleration: 0.05
+    default_position: 0.0
+
+# Tool center point (TCP) relative to pipette_base_link
+tcp_offset:
+  x: 0.0
+  y: 0.0
+  z: 0.16  # 1cm beyond pipette tip
+
+# Joint stiffness and damping for simulation
+joint_dynamics:
+  plunger_joint:
+    damping: 0.1
+    friction: 0.05
+    stiffness: 100.0
+    
+  tip_eject_joint:
+    damping: 0.1
+    friction: 0.05
+    stiffness: 100.0

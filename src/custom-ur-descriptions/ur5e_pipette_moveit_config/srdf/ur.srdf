@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="ur">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    
+    <!-- UR arm group - robot arm without tool -->
+    <group name="ur_arm">
+        <chain base_link="base_link" tip_link="flange"/>
+    </group>
+    
+    <!-- Pipette tool group - pipette components only -->
+    <group name="pipette_tool">
+        <link name="pipette_base_link"/>
+        <link name="led_strip_link"/>
+        <link name="plunger_link"/>
+        <link name="tip_eject_link"/>
+        <link name="pipette_tip_link"/>
+        <joint name="plunger_joint"/>
+        <joint name="tip_eject_joint"/>
+    </group>
+    
+    <!-- Combined group - complete system -->
+    <group name="ur_arm_with_pipette">
+        <group name="ur_arm"/>
+        <group name="pipette_tool"/>
+    </group>
+    
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="moveit_home" group="ur_arm">
+        <joint name="elbow_joint" value="0"/>
+        <joint name="shoulder_lift_joint" value="-1.572"/>
+        <joint name="shoulder_pan_joint" value="0"/>
+        <joint name="wrist_1_joint" value="0"/>
+        <joint name="wrist_2_joint" value="0"/>
+        <joint name="wrist_3_joint" value="0"/>
+    </group_state>
+    
+    <!-- Pipette states -->
+    <group_state name="pipette_retracted" group="pipette_tool">
+        <joint name="plunger_joint" value="0.0"/>
+        <joint name="tip_eject_joint" value="0.0"/>
+    </group_state>
+    
+    <group_state name="pipette_extended" group="pipette_tool">
+        <joint name="plunger_joint" value="0.008"/>
+        <joint name="tip_eject_joint" value="0.0"/>
+    </group_state>
+    
+    <group_state name="tip_ejected" group="pipette_tool">
+        <joint name="plunger_joint" value="0.0"/>
+        <joint name="tip_eject_joint" value="0.004"/>
+    </group_state>
+    
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="pipette_tool" parent_link="flange" group="pipette_tool"/>
+    
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <virtual_joint name="virtual_joint" type="fixed" parent_frame="map" child_link="map"/>
+    
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    
+    <!-- Standard UR arm collision avoidance -->
+    <disable_collisions link1="base_link_inertia" link2="shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="forearm_link" link2="upper_arm_link" reason="Adjacent"/>
+    <disable_collisions link1="forearm_link" link2="wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="forearm_link" link2="wrist_2_link" reason="Never"/>
+    <disable_collisions link1="shoulder_link" link2="upper_arm_link" reason="Adjacent"/>
+    <disable_collisions link1="wrist_1_link" link2="wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="wrist_1_link" link2="wrist_3_link" reason="Never"/>
+    <disable_collisions link1="wrist_2_link" link2="wrist_3_link" reason="Adjacent"/>
+    
+    <!-- Pipette tool collision avoidance -->
+    <disable_collisions link1="pipette_base_link" link2="wrist_1_link" reason="Never"/>
+    <disable_collisions link1="pipette_base_link" link2="wrist_2_link" reason="Never"/>
+    <disable_collisions link1="pipette_base_link" link2="wrist_3_link" reason="Adjacent"/>
+    <disable_collisions link1="led_strip_link" link2="pipette_base_link" reason="Adjacent"/>
+    <disable_collisions link1="plunger_link" link2="pipette_base_link" reason="Adjacent"/>
+    <disable_collisions link1="tip_eject_link" link2="pipette_base_link" reason="Adjacent"/>
+    <disable_collisions link1="pipette_tip_link" link2="pipette_base_link" reason="Adjacent"/>
+    <disable_collisions link1="plunger_link" link2="tip_eject_link" reason="Never"/>
+    <disable_collisions link1="plunger_link" link2="led_strip_link" reason="Never"/>
+    <disable_collisions link1="tip_eject_link" link2="led_strip_link" reason="Never"/>
+</robot>

@@ -7,6 +7,17 @@
   <maintainer email="xiao.yuan0217@gmail.com">eric</maintainer>
   <license>Apache-2.0</license>
 
+  <!-- Python dependencies -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>rclpy_action</exec_depend>
+
+  <!-- Build dependencies for Python package -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- Test dependencies -->
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

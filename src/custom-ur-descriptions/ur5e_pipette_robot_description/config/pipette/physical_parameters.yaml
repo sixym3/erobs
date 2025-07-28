@@ -1,0 +1,38 @@
+# Physical parameters for pipette tool
+
+inertia_parameters:
+  pipette_base_mass: 0.200
+  plunger_mass: 0.001
+  tip_eject_mass: 0.001
+  led_strip_mass: 0.005
+
+  pipette_base_radius: 0.02
+  pipette_length: 0.15
+
+  links:
+    pipette_base:
+      radius: 0.02
+      length: 0.15
+    plunger:
+      radius: 0.001
+      length: 0.001
+    tip_eject:
+      radius: 0.001
+      length: 0.001
+    led_strip:
+      radius: 0.001
+      length: 0.02
+
+  center_of_mass:
+    pipette_base_cog:
+      x: 0.0
+      y: 0.0
+      z: 0.075  # Half the length
+    plunger_cog:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    tip_eject_cog:
+      x: 0.0
+      y: 0.0
+      z: 0.0

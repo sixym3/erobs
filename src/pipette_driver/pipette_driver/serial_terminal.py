@@ -112,5 +112,9 @@ def main():
             ser.close()
             print("Serial port closed")
 
+def cli_main():
+    """Entry point for ros2 run command"""
+    main()
+
 if __name__ == "__main__":
     main()

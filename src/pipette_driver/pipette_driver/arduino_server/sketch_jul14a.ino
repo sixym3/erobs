@@ -28,6 +28,23 @@ unsigned long startTime = 0;
 uint8_t lastR = 0, lastG = 0, lastB = 0;
 uint8_t lastBrightness = 50; // Default brightness
 
+// Actuator control variables
+int plungerPosition = 0;    // Current plunger position in mm
+int tipEjectPosition = 0;   // Current tip eject position in mm
+int plungerMaxTravel = 10;  // Maximum plunger travel in mm
+int tipEjectMaxTravel = 5;  // Maximum tip eject travel in mm
+
+// Pin definitions for actuators (example pins - adjust for your hardware)
+#define PLUNGER_STEP_PIN 2
+#define PLUNGER_DIR_PIN 3
+#define PLUNGER_ENABLE_PIN 4
+#define TIP_EJECT_STEP_PIN 5
+#define TIP_EJECT_DIR_PIN 6
+#define TIP_EJECT_ENABLE_PIN 7
+
+// Steps per mm for actuators (adjust based on your stepper motor setup)
+#define STEPS_PER_MM 200  // Example: 200 steps per mm
+
 // Function prototypes
 void setLEDColor(uint8_t r, uint8_t g, uint8_t b);
 void setLEDBrightness(uint8_t brightness);
@@ -92,9 +109,11 @@ void loop() {
     sendMessage(getHeartbeatStatus());
     
     // Brief LED pulse for heartbeat
-    digitalWrite(LED_BUILTIN, !builtInLEDState);
-    delay(HEARTBEAT_DURATION);
-    digitalWrite(LED_BUILTIN, !builtInLEDState);
+    if(!builtInLEDState) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(HEARTBEAT_DURATION);
+      digitalWrite(LED_BUILTIN, LOW);
+    }
   }
 }
 
@@ -134,7 +153,7 @@ void processCommand(String command) {
   
   
   // Base Commands
-  if(command == "V" || command == "v") {
+  else if(command == "V" || command == "v") {
     // Toggle Built-in LED
     builtInLEDState = !builtInLEDState;
     digitalWrite(LED_BUILTIN, builtInLEDState);

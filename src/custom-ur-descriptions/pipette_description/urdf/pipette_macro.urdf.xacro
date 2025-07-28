@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <!--
+    Static URDF description for pipette tool with ros2_control integration
+    Replace placeholder meshes with your actual CAD files
+  -->
+
+  <xacro:include filename="$(find pipette_description)/urdf/pipette.ros2_control.xacro"/>
+
+  <xacro:macro
+    name="pipette"
+    params="name
+            prefix
+            parent
+            serial_port
+            baudrate
+            plunger_max
+            tip_eject_max
+            use_fake_hardware
+            pipette_mass:=0.200
+            xyz:='0 0 0'
+            rpy:='0 0 0'"
+  >
+    <!-- ros2_control parameters -->
+    <xacro:pipette_ros2_control
+      name="${name}"
+      prefix="${prefix}"
+      serial_port="${serial_port}"
+      baudrate="${baudrate}"
+      plunger_max="${plunger_max}"
+      tip_eject_max="${tip_eject_max}"
+      use_fake_hardware="${use_fake_hardware}"
+    />
+
+    <!-- Pipette physical dimensions (adjust based on your CAD) -->
+    <xacro:property name="pipette_length" value="0.15"/>  <!-- 15cm length -->
+    <xacro:property name="pipette_radius" value="0.02"/>   <!-- 2cm radius -->
+
+    <!-- Main attachment joint -->
+    <joint name="${prefix}pipette_attachment_joint" type="fixed">
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <parent link="${parent}"/>
+      <child link="${prefix}pipette_base_link"/>
+    </joint>
+
+    <!-- Main pipette body -->
+    <link name="${prefix}pipette_base_link">
+      <visual>
+        <origin xyz="0 0 ${pipette_length/2}" rpy="0 0 0"/>
+        <geometry>
+          <!-- Replace this cylinder with your CAD mesh -->
+          <!-- <mesh filename="package://pipette_description/meshes/visual/pipette_body.dae"/> -->
+          <cylinder length="${pipette_length}" radius="${pipette_radius}"/>
+        </geometry>
+        <material name="pipette_gray">
+          <color rgba="0.7 0.7 0.7 1.0"/>
+        </material>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 ${pipette_length/2}" rpy="0 0 0"/>
+        <geometry>
+          <!-- Replace this cylinder with simplified collision mesh -->
+          <!-- <mesh filename="package://pipette_description/meshes/collision/pipette_body.stl"/> -->
+          <cylinder length="${pipette_length}" radius="${pipette_radius}"/>
+        </geometry>
+      </collision>
+
+      <inertial>
+        <origin xyz="0 0 ${pipette_length/2}" rpy="0 0 0"/>
+        <mass value="${pipette_mass}"/>
+        <inertia ixx="${pipette_mass * (3 * pipette_radius * pipette_radius + pipette_length * pipette_length) / 12}"
+                 ixy="0.0"
+                 ixz="0.0"
+                 iyy="${pipette_mass * (3 * pipette_radius * pipette_radius + pipette_length * pipette_length) / 12}"
+                 iyz="0.0"
+                 izz="${pipette_mass * pipette_radius * pipette_radius / 2}"/>
+      </inertial>
+    </link>
+
+    <!-- LED strip (visual element only) -->
+    <joint name="${prefix}led_strip_joint" type="fixed">
+      <origin xyz="0 ${pipette_radius + 0.005} ${pipette_length * 0.7}" rpy="0 0 0"/>
+      <parent link="${prefix}pipette_base_link"/>
+      <child link="${prefix}led_strip_link"/>
+    </joint>
+
+    <link name="${prefix}led_strip_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.002 0.001 0.02"/>  <!-- Small LED strip representation -->
+        </geometry>
+        <material name="led_strip">
+          <color rgba="0.0 0.0 1.0 1.0"/>  <!-- Blue when off -->
+        </material>
+      </visual>
+    </link>
+
+    <!-- Conceptual plunger link for ros2_control (no visual representation) -->
+    <!-- This represents the internal plunger mechanism -->
+    <joint name="${prefix}plunger_joint" type="prismatic">
+      <origin xyz="0 0 ${pipette_length}" rpy="0 0 0"/>
+      <parent link="${prefix}pipette_base_link"/>
+      <child link="${prefix}plunger_link"/>
+      <axis xyz="0 0 1"/>  <!-- Z-axis movement (up/down) -->
+      <limit effort="10.0" lower="0.0" upper="${plunger_max}" velocity="0.01"/>
+    </joint>
+
+    <link name="${prefix}plunger_link">
+      <!-- No visual/collision geometry - this is handled by hardware interface -->
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.001"/>  <!-- Minimal mass -->
+        <inertia ixx="1E-9" ixy="0.0" ixz="0.0" iyy="1E-9" iyz="0.0" izz="1E-9"/>
+      </inertial>
+    </link>
+
+    <!-- Conceptual tip ejection link for ros2_control (no visual representation) -->
+    <!-- This represents the tip ejection mechanism -->
+    <joint name="${prefix}tip_eject_joint" type="prismatic">
+      <origin xyz="0 0 ${pipette_length}" rpy="0 0 0"/>
+      <parent link="${prefix}pipette_base_link"/>
+      <child link="${prefix}tip_eject_link"/>
+      <axis xyz="0 0 1"/>  <!-- Z-axis movement (up/down) -->
+      <limit effort="5.0" lower="0.0" upper="${tip_eject_max}" velocity="0.01"/>
+    </joint>
+
+    <link name="${prefix}tip_eject_link">
+      <!-- No visual/collision geometry - this is handled by hardware interface -->
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.001"/>  <!-- Minimal mass -->
+        <inertia ixx="1E-9" ixy="0.0" ixz="0.0" iyy="1E-9" iyz="0.0" izz="1E-9"/>
+      </inertial>
+    </link>
+
+    <!-- Tool tip reference frame -->
+    <joint name="${prefix}pipette_tip_joint" type="fixed">
+      <origin xyz="0 0 ${pipette_length + 0.01}" rpy="0 0 0"/>
+      <parent link="${prefix}pipette_base_link"/>
+      <child link="${prefix}pipette_tip_link"/>
+    </joint>
+
+    <link name="${prefix}pipette_tip_link"/>
+
+  </xacro:macro>
+</robot>

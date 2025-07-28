@@ -1,0 +1,26 @@
+# Visual parameters for pipette tool
+
+visual_parameters:
+  pipette_base:
+    mesh_file: "package://pipette_description/meshes/visual/pipette_body.dae"
+    color:
+      r: 0.7
+      g: 0.7
+      b: 0.7
+      a: 1.0
+  
+  led_strip:
+    color:
+      r: 0.0
+      g: 0.0
+      b: 1.0
+      a: 1.0
+
+collision_parameters:
+  pipette_base:
+    mesh_file: "package://pipette_description/meshes/collision/pipette_body.stl"
+    use_simplified_geometry: true
+    simplified_geometry:
+      type: "cylinder"
+      radius: 0.02
+      length: 0.15

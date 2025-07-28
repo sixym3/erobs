@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
-<!--Based on same file and version as https://github.com/UniversalRobots/Universal_Robots_ROS2_Description/blob/29e90d5095fdf4af99eba3c3eae153d7d5d769c0/urdf/ur.urdf.xacro-->
+<!--Based on ur_with_hande.xacro for pipette tool integration-->
    <!-- robot name parameter -->
    <xacro:arg name="name" default="ur"/>
    <!-- import main macro -->
    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
-   <xacro:include filename="$(find robotiq_hande_description)/urdf/robotiq_hande_gripper.xacro"/>
+   <xacro:include filename="$(find pipette_description)/urdf/pipette_macro.urdf.xacro"/>
 
    <!-- possible 'ur_type' values: ur3, ur5e, ur5, ur5e, ur10, ur10e, ur16e, ur20 -->
    <!-- the default value should raise an error in case this was called without defining the type -->
@@ -53,7 +53,7 @@
    <xacro:arg name="mock_hardware" default="false" />
 
    <!-- initial position for simulations (Fake Hardware, Gazebo, Ignition) -->
-   <xacro:arg name="initial_positions_file" default="$(find ur_description)/config/initial_positions.yaml"/>
+   <xacro:arg name="initial_positions_file" default="$(find ur5e_pipette_robot_description)/config/initial_positions.yaml"/>
 
    <!-- convert to property to use substitution in function -->
    <xacro:property name="initial_positions_file" default="$(arg initial_positions_file)"/>
@@ -103,30 +103,22 @@
    </xacro:ur_robot>
 
 
-  <!-- hande gripper -->
-    <xacro:arg name="grip_pos_min" default="0"/>
-    <xacro:arg name="grip_pos_max" default="0.025"/>
-    <xacro:arg name="tty" default="/tmp/ttyUR"/>
+  <!-- pipette tool -->
+    <xacro:arg name="serial_port" default="/tmp/ttyUR"/>
     <xacro:arg name="baudrate" default="115200"/>
-    <xacro:arg name="parity" default="N"/>
-    <xacro:arg name="data_bits" default="8"/>
-    <xacro:arg name="stop_bit" default="1"/>
-    <xacro:arg name="slave_id" default="9"/>
+    <xacro:arg name="plunger_max" default="0.010"/>
+    <xacro:arg name="tip_eject_max" default="0.005"/>
 
-    <xacro:robotiq_hande_gripper
-      name="robotiq_hande_gripper"
+    <xacro:pipette
+      name="pipette"
       prefix="$(arg tf_prefix)"
       parent="$(arg tf_prefix)flange"
-      grip_pos_min="$(arg grip_pos_min)"
-      grip_pos_max="$(arg grip_pos_max)"
-      tty="$(arg tty)"
+      serial_port="$(arg serial_port)"
       baudrate="$(arg baudrate)"
-      parity="$(arg parity)"
-      data_bits="$(arg data_bits)"
-      stop_bit="$(arg stop_bit)"
-      slave_id="$(arg slave_id)"
+      plunger_max="$(arg plunger_max)"
+      tip_eject_max="$(arg tip_eject_max)"
       use_fake_hardware="$(arg mock_hardware)"
       xyz="0 0 0"
-      rpy="-1.5708 0 -1.5708"/>
+      rpy="0 0 0"/>
 
 </robot>

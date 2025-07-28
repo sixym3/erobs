@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="pipette">
+  <xacro:arg name="parent" default="tool0"/>
+  <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
+  <xacro:arg name="baudrate" default="115200"/>
+  <xacro:arg name="plunger_max" default="0.010"/>
+  <xacro:arg name="tip_eject_max" default="0.005"/>
+  <xacro:arg name="use_fake_hardware" default="true"/>
+
+  <xacro:include filename="$(find pipette_description)/urdf/pipette_macro.urdf.xacro"/>
+
+  <link name="$(arg parent)"/>
+  <xacro:pipette
+    name="pipette"
+    prefix=""
+    parent="$(arg parent)"
+    serial_port="$(arg serial_port)"
+    baudrate="$(arg baudrate)"
+    plunger_max="$(arg plunger_max)"
+    tip_eject_max="$(arg tip_eject_max)"
+    use_fake_hardware="$(arg use_fake_hardware)"
+  />
+</robot>
