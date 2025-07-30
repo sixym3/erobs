@@ -1,29 +1,29 @@
 # Pipette MoveIt Configuration
 
-MoveIt configuration package for standalone pipette motion planning and control.
+MoveIt configuration package for standalone pipette motion planning and control with real hardware integration.
 
 ## Overview
 
-This package provides a complete MoveIt setup for the pipette tool, enabling motion planning, visualization, and RViz integration with the Motion Planning plugin. It's designed for standalone pipette control with GUI sliders and hardware integration.
+This package provides a complete MoveIt setup for the pipette tool, enabling motion planning, visualization, and RViz integration with the Motion Planning plugin. It's designed for standalone pipette control using **[0,1) percentage scaling** for real hardware control.
 
 ### Features
 - **MoveIt Motion Planning**: OMPL-based path planning for pipette joints
-- **RViz Integration**: Motion Planning plugin with interactive markers
-- **Hardware Control**: Integrates with pipette_driver action server
-- **GUI Control**: Joint sliders for manual position control
+- **RViz Integration**: Motion Planning plugin with interactive markers and drag-and-drop control
+- **Real Hardware Control**: ros2_control integration with pipette hardware interface
+- **Percentage Scaling**: Uses [0,1) range matching Arduino firmware expectations
 - **Predefined States**: Common pipette positions (retracted, extended, etc.)
-- **Real-time Visualization**: Live robot model updates
+- **Real-time Visualization**: Live robot model updates from hardware feedback
 
 ## Package Contents
 
 ### Configuration Files
 - **`config/kinematics.yaml`** - Kinematics solver configuration
-- **`config/joint_limits.yaml`** - Joint velocity and acceleration limits
-- **`config/moveit_controllers.yaml`** - Controller interface configuration
-- **`srdf/pipette.srdf`** - Semantic robot description with planning groups
+- **`config/joint_limits.yaml`** - Joint velocity/acceleration limits (**[0,1) scaling**)
+- **`config/moveit_controllers.yaml`** - MoveIt-ros2_control interface configuration
+- **`srdf/pipette.srdf`** - Semantic robot description with planning groups and predefined states
 
 ### Launch Files
-- **`launch/driver_with_rviz.launch.py`** - Complete setup with RViz + hardware control + GUI sliders
+- **`launch/driver_with_rviz.launch.py`** - Complete MoveIt setup with RViz Motion Planning + real hardware control
 
 ### RViz Configuration
 - **`rviz/moveit.rviz`** - Pre-configured RViz with Motion Planning plugin
@@ -32,8 +32,10 @@ This package provides a complete MoveIt setup for the pipette tool, enabling mot
 
 ### Prerequisites
 ```bash
-# Install MoveIt and dependencies
-sudo apt install ros-humble-moveit ros-humble-moveit-planners-ompl ros-humble-moveit-simple-controller-manager
+# Install MoveIt and ros2_control dependencies
+sudo apt install ros-humble-moveit ros-humble-moveit-planners-ompl 
+sudo apt install ros-humble-controller-manager ros-humble-joint-trajectory-controller
+sudo apt install ros-humble-joint-state-broadcaster
 
 # Build required packages
 cd /path/to/your/workspace
@@ -41,46 +43,47 @@ colcon build --packages-select pipette_driver pipette_description pipette_moveit
 source install/setup.bash
 ```
 
-### Launch Complete System
+### Launch Complete MoveIt System
 ```bash
-# Launch with hardware control and GUI sliders
+# Launch with MoveIt Motion Planning and real hardware control
 ros2 launch pipette_moveit_config driver_with_rviz.launch.py
 
-# Custom serial port
-ros2 launch pipette_moveit_config driver_with_rviz.launch.py serial_port:=/dev/ttyUSB0
+# Custom serial port (default is /dev/ttyUSB0)
+ros2 launch pipette_moveit_config driver_with_rviz.launch.py serial_port:=/dev/ttyACM0
 ```
 
 **What you get:**
-- RViz with Motion Planning plugin
-- Joint sliders for manual control
-- Real-time hardware control
-- 3D robot visualization
+- RViz with MoveIt Motion Planning plugin
+- Interactive markers for drag-and-drop control
+- Real-time hardware control with [0,1) percentage scaling
+- Motion planning and execution capabilities
+- 3D robot visualization with live feedback
 
 ## Usage
 
-### Manual Control with GUI Sliders
-1. **Launch the system**:
+### MoveIt Motion Planning Interface
+1. **Launch the MoveIt system**:
    ```bash
    ros2 launch pipette_moveit_config driver_with_rviz.launch.py
    ```
 
-2. **Use Joint State Publisher GUI**:
-   - Move `plunger_joint` slider (0-10mm range)
-   - Move `tip_eject_joint` slider (0-5mm range)
-   - Robot model updates in RViz in real-time
-   - Hardware moves correspondingly
+2. **Use MoveIt Motion Planning Plugin in RViz**:
+   - **Planning Group**: Select "pipette_tool"
+   - **Interactive Markers**: Drag orange balls to set target positions
+   - **Predefined States**: Use buttons for common positions
+   - **Plan & Execute**: Click "Plan" then "Execute" to move hardware
+   - **Real-time Control**: Values are in [0,1) percentage range
 
-3. **Monitor hardware response**:
-   - Arduino receives `SETPOSITION x y` commands
-   - LED updates based on joint positions (if using LED test firmware)
+3. **Predefined States Available**:
+   - **`retracted`** - Both joints at 0% (fully retracted)
+   - **`plunger_extended`** - Plunger at 80%, tip at 0%
+   - **`tip_ejected`** - Plunger at 0%, tip at 80%
+   - **`both_extended`** - Plunger at 50%, tip at 40%
 
-### Motion Planning (Future Enhancement)
-The package is set up for motion planning but currently optimized for direct control:
-
-1. **Planning Group**: `pipette_tool` (contains both pipette joints)
-2. **Predefined States**: 
-   - `retracted` - Both joints at 0mm
-   - `extended` - Plunger at 5mm, tip eject at 2mm
+4. **Hardware Communication**:
+   - Arduino receives position commands in [0,1) percentage format
+   - Real-time position feedback via ros2_control
+   - LED control available via separate topics
 
 ## Configuration Details
 
@@ -93,23 +96,23 @@ group name="pipette_tool":
     - tip_eject_joint
 ```
 
-### Joint Limits
+### Joint Limits ([0,1) Percentage Scaling)
 ```yaml
 # In config/joint_limits.yaml
 plunger_joint:
-  max_velocity: 0.005      # 5mm/s
-  max_acceleration: 0.001  # 1mm/s²
+  max_velocity: 0.5        # 50% per second
+  max_acceleration: 0.1    # 10% per second²
   min_position: 0.0
-  max_position: 0.010      # 10mm
+  max_position: 1.0        # [0,1) percentage range
 
 tip_eject_joint:
-  max_velocity: 0.002      # 2mm/s  
-  max_acceleration: 0.001  # 1mm/s²
+  max_velocity: 0.4        # 40% per second  
+  max_acceleration: 0.1    # 10% per second²
   min_position: 0.0
-  max_position: 0.005      # 5mm
+  max_position: 1.0        # [0,1) percentage range
 ```
 
-### Controller Integration
+### Controller Integration (ros2_control)
 ```yaml
 # In config/moveit_controllers.yaml
 pipette_controller:
@@ -117,13 +120,18 @@ pipette_controller:
   joints:
     - plunger_joint
     - tip_eject_joint
-  action_ns: follow_joint_trajectory  # Connects to pipette_driver_node
+  action_ns: follow_joint_trajectory  # Connects via ros2_control
+
+# In pipette_controllers.yaml (ros2_control)
+pipette_controller:
+  type: joint_trajectory_controller/JointTrajectoryController
+  joints: [plunger_joint, tip_eject_joint]
 ```
 
 ## Launch Arguments
 
 ### driver_with_rviz.launch.py
-- **`serial_port`** - Arduino serial port (default: `/tmp/ttyUR`)
+- **`serial_port`** - Arduino serial port (default: `/dev/ttyUSB0`)
 - **`baudrate`** - Serial communication baud rate (default: `115200`)
 - **`use_sim_time`** - Use simulation time (default: `false`)
 
@@ -132,8 +140,11 @@ pipette_controller:
 # Default setup
 ros2 launch pipette_moveit_config driver_with_rviz.launch.py
 
-# Custom hardware
-ros2 launch pipette_moveit_config driver_with_rviz.launch.py serial_port:=/dev/ttyUSB0 baudrate:=9600
+# Custom hardware port
+ros2 launch pipette_moveit_config driver_with_rviz.launch.py serial_port:=/dev/ttyACM0
+
+# Different baudrate
+ros2 launch pipette_moveit_config driver_with_rviz.launch.py baudrate:=9600
 
 # With simulation time
 ros2 launch pipette_moveit_config driver_with_rviz.launch.py use_sim_time:=true
@@ -143,46 +154,52 @@ ros2 launch pipette_moveit_config driver_with_rviz.launch.py use_sim_time:=true
 
 ### Node Communication Flow
 ```
-Joint Sliders (GUI) 
-    ↓ /joint_states
-joint_state_bridge_node
+MoveIt Motion Planning (RViz)
     ↓ /follow_joint_trajectory (action)
-pipette_driver_node (namespace: pipette_controller)
+ros2_control (controller_manager)
+    ↓ /pipette_controller/follow_joint_trajectory
+joint_trajectory_controller
+    ↓ position commands [0,1) range
+pipette_hardware_interface
     ↓ SETPOSITION commands (serial)
 Arduino Hardware
 ```
 
 ### Key Nodes
-1. **`joint_state_publisher_gui`** - Provides manual joint sliders
-2. **`joint_state_bridge`** - Converts slider positions to trajectory actions
-3. **`pipette_driver_node`** - Hardware interface with action server
-4. **`robot_state_publisher`** - Publishes TF transforms for visualization
-5. **`static_transform_publisher`** - Provides world→tool0 transform
+1. **`move_group`** - MoveIt motion planning node
+2. **`controller_manager`** - ros2_control controller management
+3. **`joint_state_broadcaster`** - Publishes joint states from hardware
+4. **`pipette_controller`** - Joint trajectory controller for both joints
+5. **`robot_state_publisher`** - Publishes TF transforms for visualization
+6. **`rviz2_moveit`** - RViz with Motion Planning plugin
 
 ## Troubleshooting
 
 ### MoveIt Can't Connect to Controllers
 ```bash
-# Check if pipette_driver_node is running in correct namespace
-ros2 node list | grep pipette_controller
+# Check if ros2_control is running
+ros2 node list | grep controller_manager
 
-# Verify action server is available
-ros2 action list | grep follow_joint_trajectory
+# Verify controllers are loaded and active
+ros2 control list_controllers
 
-# Check controller configuration
+# Check MoveIt controller configuration
 ros2 param get /move_group moveit_simple_controller_manager
+
+# Test trajectory action directly
+ros2 action list | grep pipette_controller
 ```
 
-### Joint Sliders Don't Control Hardware
+### Hardware Interface Issues
 ```bash
-# Check if joint_state_bridge is running
-ros2 node list | grep joint_state_bridge
+# Check if hardware interface is loaded
+ros2 control list_hardware_interfaces
 
 # Verify joint states are being published
 ros2 topic echo /joint_states
 
-# Test trajectory action directly
-ros2 action send_goal /pipette_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory "..."
+# Check controller status
+ros2 control switch_controllers --activate pipette_controller
 ```
 
 ### RViz Motion Planning Plugin Issues
@@ -202,36 +219,42 @@ ros2 launch pipette_moveit_config driver_with_rviz.launch.py --ros-args --log-le
 # Test serial communication first
 ros2 run pipette_driver serial_terminal
 
-# Check pipette driver logs
-ros2 launch pipette_moveit_config driver_with_rviz.launch.py 2>&1 | grep pipette_driver
+# Check hardware interface logs
+ros2 launch pipette_moveit_config driver_with_rviz.launch.py 2>&1 | grep hardware
 
-# Verify Arduino firmware matches expected commands
-# Should respond to: SETPOSITION 5 2
+# Verify Arduino firmware uses [0,1) percentage scaling
+# Should respond to: SETPOSITION 0.5 0.3 (not mm values)
+
+# Check serial port permissions
+ls -la /dev/ttyUSB* # or /dev/ttyACM*
+sudo chmod 666 /dev/ttyUSB0  # if needed
 ```
 
 ## Development
 
 ### Adding New Predefined States
-Edit `srdf/pipette.srdf`:
+Edit `srdf/pipette.srdf` using [0,1) percentage values:
 ```xml
 <group_state name="my_new_state" group="pipette_tool">
-    <joint name="plunger_joint" value="0.008"/>
-    <joint name="tip_eject_joint" value="0.003"/>
+    <joint name="plunger_joint" value="0.75"/>
+    <joint name="tip_eject_joint" value="0.25"/>
 </group_state>
 ```
 
 ### Modifying Joint Limits
-Edit `config/joint_limits.yaml` and update URDF accordingly:
+Edit `config/joint_limits.yaml` for [0,1) percentage scaling:
 ```yaml
 plunger_joint:
-  max_position: 0.015  # Increase to 15mm
+  max_velocity: 0.8    # 80% per second
+  max_acceleration: 0.2 # 20% per second²
 ```
 
-### Adding Motion Planning
-The package is set up for motion planning. To enable:
-1. Use Motion Planning plugin in RViz
-2. Set planning group to "pipette_tool"
-3. Set goal states and plan/execute
+### Motion Planning Usage
+The package is fully configured for motion planning:
+1. Launch: `ros2 launch pipette_moveit_config driver_with_rviz.launch.py`
+2. In RViz: Set planning group to "pipette_tool"
+3. Use interactive markers or predefined states
+4. Click "Plan" then "Execute" to move real hardware
 
 ## Integration Notes
 

@@ -34,6 +34,9 @@ LED Strip:
 
 Communication:
 - RS485: Pins 0(RX), 1(TX) at 115200 baud
+
+Communication script:
+ros2 run ur_robot_driver tool_communication.py --ros-args -p robot_ip:=${ROBOT_IP}
 ```
 
 ## Installation

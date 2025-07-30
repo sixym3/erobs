@@ -26,25 +26,29 @@ class PipetteDriverNode(Node):
         self.declare_parameter('serial_port', '/tmp/ttyUR')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('timeout', 1.0)
+        self.declare_parameter('plunger_max_m', 1.0)    # Percentage range [0, 1)
+        self.declare_parameter('tip_max_m', 1.0)        # Percentage range [0, 1)
         
         # Get parameters
         self.serial_port = self.get_parameter('serial_port').value
         self.baudrate = self.get_parameter('baudrate').value
         self.timeout = self.get_parameter('timeout').value
+        self.plunger_max_m = self.get_parameter('plunger_max_m').value
+        self.tip_max_m = self.get_parameter('tip_max_m').value
         
         # Serial connection
         self.serial_connection = None
         self.running = False
         self.response_thread = None
         
-        # Current state
-        self.plunger_position_mm = 0.0
-        self.tip_position_mm = 0.0
+        # Current state (percentage values [0, 1))
+        self.plunger_position_pct = 0.0
+        self.tip_position_pct = 0.0
         self.led_on = False
         
-        # Joint limits (in meters)
-        self.PLUNGER_MAX = 0.010  # 10mm
-        self.TIP_MAX = 0.005      # 5mm
+        # Joint limits (percentage range [0, 1)) - now configurable via parameters
+        self.PLUNGER_MAX = self.plunger_max_m
+        self.TIP_MAX = self.tip_max_m
         
         # Joint names for trajectory
         self.joint_names = ['plunger_joint', 'tip_eject_joint']
@@ -137,20 +141,17 @@ class PipetteDriverNode(Node):
             plunger_pos = point.positions[0]
             tip_pos = point.positions[1]
             
-            # Validate positions
-            if not (0.0 <= plunger_pos <= self.PLUNGER_MAX):
-                self.get_logger().warn(f"Plunger position {plunger_pos:.6f}m out of range")
+            # Validate positions (percentage range [0, 1))
+            if not (0.0 <= plunger_pos < self.PLUNGER_MAX):
+                self.get_logger().warn(f"Plunger position {plunger_pos:.3f} out of range [0, 1)")
                 continue
                 
-            if not (0.0 <= tip_pos <= self.TIP_MAX):
-                self.get_logger().warn(f"Tip position {tip_pos:.6f}m out of range")
+            if not (0.0 <= tip_pos < self.TIP_MAX):
+                self.get_logger().warn(f"Tip position {tip_pos:.3f} out of range [0, 1)")
                 continue
             
-            # Send combined command to Arduino
-            plunger_mm = int(plunger_pos * 1000.0)
-            tip_mm = int(tip_pos * 1000.0)
-            
-            self._send_command(f"SETPOSITION {plunger_mm} {tip_mm}")
+            # Send combined command to Arduino (direct percentage values)
+            self._send_command(f"SETPOSITION {plunger_pos:.3f} {tip_pos:.3f}")
             
             # Wait for movement to complete
             time.sleep(1.0)  # Simple wait - could be improved with feedback
@@ -159,8 +160,8 @@ class PipetteDriverNode(Node):
             feedback = FollowJointTrajectory.Feedback()
             self._update_position_feedback()
             feedback.actual.positions = [
-                self.plunger_position_mm / 1000.0,
-                self.tip_position_mm / 1000.0
+                self.plunger_position_pct,
+                self.tip_position_pct
             ]
             goal_handle.publish_feedback(feedback)
         
@@ -252,14 +253,14 @@ class PipetteDriverNode(Node):
         """Process responses from Arduino to extract position feedback"""
         self.get_logger().debug(f"Arduino response: {response}")
         
-        # Look for position information in responses
-        plunger_match = re.search(r'PLUNGER:(\d+(?:\.\d+)?)', response)
+        # Look for position information in responses (Arduino format: STATUS: PLUNGER=0.500, TIP=0.300, ...)
+        plunger_match = re.search(r'PLUNGER=([0-9]*\.?[0-9]+)', response)
         if plunger_match:
-            self.plunger_position_mm = float(plunger_match.group(1))
+            self.plunger_position_pct = float(plunger_match.group(1))
             
-        tip_match = re.search(r'TIP:(\d+(?:\.\d+)?)', response)
+        tip_match = re.search(r'TIP=([0-9]*\.?[0-9]+)', response)
         if tip_match:
-            self.tip_position_mm = float(tip_match.group(1))
+            self.tip_position_pct = float(tip_match.group(1))
 
     def _update_position_feedback(self):
         """Request position status from Arduino"""

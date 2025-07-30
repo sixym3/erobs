@@ -1,6 +1,6 @@
-// Arduino Pipette Actuator Control with RS485 Communication
-// Controls 2 actuators (plunger and tip ejection) plus LED strip
-// Based on the original LED control sketch but extended for actuator control
+// Arduino Pipette Linear Actuator Control with RS485 Communication
+// Controls 2 linear actuators (plunger and tip ejection) plus LED strip
+// Uses PWM control for linear actuators instead of stepper motors
 
 #include <ArduinoRS485.h>
 #include <Adafruit_NeoPixel.h>
@@ -13,24 +13,21 @@ Adafruit_NeoPixel pixels(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
 // Built-in LED
 #define LED_BUILTIN 13
 
-// Actuator Pin Definitions (adjust for your hardware)
-#define PLUNGER_STEP_PIN 2
-#define PLUNGER_DIR_PIN 3
-#define PLUNGER_ENABLE_PIN 4
-#define TIP_EJECT_STEP_PIN 5
-#define TIP_EJECT_DIR_PIN 6
-#define TIP_EJECT_ENABLE_PIN 7
+// Linear Actuator Pin Definitions
+#define PLUNGER_PWM_PIN 9      // PWM control for plunger actuator
+#define TIP_EJECT_PWM_PIN 10   // PWM control for tip eject actuator
 
-// Actuator Configuration
-#define STEPS_PER_MM 200        // Steps per mm (adjust based on your stepper setup)
-#define PLUNGER_MAX_MM 10       // Maximum plunger travel in mm
-#define TIP_EJECT_MAX_MM 5      // Maximum tip eject travel in mm
-#define ACTUATOR_SPEED_DELAY 2  // Delay between steps in milliseconds
+// Actuator Configuration (positions as percentage 0.0-1.0)
+#define PLUNGER_MIN_POS 0.0    // Fully retracted
+#define PLUNGER_MAX_POS 1.0    // Fully extended
+#define TIP_EJECT_MIN_POS 0.0  // Fully retracted
+#define TIP_EJECT_MAX_POS 1.0  // Fully extended
 
 // Timing constants
 #define STARTUP_FLASH_DELAY 50
 #define HEARTBEAT_INTERVAL 5000
 #define HEARTBEAT_DURATION 50
+#define ACTUATOR_SETTLE_TIME 100  // Time to wait after position change
 
 // Global variables
 unsigned long lastHeartbeat = 0;
@@ -42,9 +39,9 @@ unsigned long startTime = 0;
 uint8_t lastR = 0, lastG = 0, lastB = 0;
 uint8_t lastBrightness = 50;
 
-// Actuator position variables
-int plungerPosition = 0;     // Current position in mm
-int tipEjectPosition = 0;    // Current position in mm
+// Actuator position variables (0.0 = retracted, 1.0 = extended)
+float plungerPosition = 0.0;
+float tipEjectPosition = 0.0;
 
 // Function prototypes
 void setLEDColor(uint8_t r, uint8_t g, uint8_t b);
@@ -55,9 +52,9 @@ String getHeartbeatStatus();
 
 // Actuator control functions
 void initializeActuators();
-void setPlungerPosition(int position_mm);
-void setTipEjectPosition(int position_mm);
-void moveActuator(int stepPin, int dirPin, int enablePin, int steps, bool direction);
+void setPlungerPosition(float position);
+void setTipEjectPosition(float position);
+void setActuatorPWM(int pin, float position);
 String getActuatorStatus();
 
 void setup() {
@@ -85,9 +82,10 @@ void setup() {
   RS485.receive();
   
   // Send startup messages
-  sendMessage("Pipette Actuator Control Ready");
-  sendMessage("Plunger: 0-" + String(PLUNGER_MAX_MM) + "mm, Tip Eject: 0-" + String(TIP_EJECT_MAX_MM) + "mm");
+  sendMessage("Pipette Linear Actuator Control Ready");
+  sendMessage("Position range: 0.0 (retracted) to 1.0 (extended)");
   sendMessage("Commands: SETPOSITION <plunger> <tip>, SETPLUNGER <pos>, SETTIPEJECT <pos>, SETCOLOR <r> <g> <b>");
+  sendMessage("Position examples: 0.0, 0.25, 0.5, 0.75, 1.0");
   sendMessage("Heartbeat interval: " + String(HEARTBEAT_INTERVAL / 1000) + " seconds");
   
   startTime = millis();
@@ -128,41 +126,103 @@ void processCommand(String command) {
 
   // Actuator Commands
   if (command.startsWith("SETPOSITION")) {
-    int plunger_pos, tip_pos;
-    int n = sscanf(command.c_str(), "SETPOSITION %d %d", &plunger_pos, &tip_pos);
-    if (n == 2 && plunger_pos >= 0 && plunger_pos <= PLUNGER_MAX_MM && 
-        tip_pos >= 0 && tip_pos <= TIP_EJECT_MAX_MM) {
-      // Move both actuators
-      setPlungerPosition(plunger_pos);
-      setTipEjectPosition(tip_pos);
-      sendMessage("Position set - Plunger: " + String(plunger_pos) + "mm, Tip: " + String(tip_pos) + "mm");
+    String params = command.substring(12);  // "SETPOSITION " = 12 chars
+    params.trim();  // Remove whitespace
+    
+    int spaceIndex = params.indexOf(' ');
+    if (spaceIndex > 0 && spaceIndex < params.length() - 1) {
+      String plungerStr = params.substring(0, spaceIndex);
+      String tipStr = params.substring(spaceIndex + 1);
+      plungerStr.trim();
+      tipStr.trim();
+      
+      if (plungerStr.length() > 0 && tipStr.length() > 0) {
+        float plunger_pos = plungerStr.toFloat();
+        float tip_pos = tipStr.toFloat();
+        
+        if (plunger_pos >= PLUNGER_MIN_POS && plunger_pos <= PLUNGER_MAX_POS && 
+            tip_pos >= TIP_EJECT_MIN_POS && tip_pos <= TIP_EJECT_MAX_POS) {
+          // Move both actuators
+          setPlungerPosition(plunger_pos);
+          setTipEjectPosition(tip_pos);
+          sendMessage("Position set - Plunger: " + String(plunger_pos, 3) + ", Tip: " + String(tip_pos, 3));
+        } else {
+          sendMessage("Invalid SETPOSITION values: Plunger=" + String(plunger_pos, 3) + ", Tip=" + String(tip_pos, 3));
+          sendMessage("Range: 0.0-1.0 for both");
+        }
+      } else {
+        sendMessage("Invalid SETPOSITION format. Usage: SETPOSITION <plunger_0.0-1.0> <tip_0.0-1.0>");
+        sendMessage("Example: SETPOSITION 0.5 0.25");
+      }
     } else {
-      sendMessage("Invalid SETPOSITION. Usage: SETPOSITION <plunger_0-" + String(PLUNGER_MAX_MM) + 
-                  "> <tip_0-" + String(TIP_EJECT_MAX_MM) + ">");
+      sendMessage("Invalid SETPOSITION. Usage: SETPOSITION <plunger_0.0-1.0> <tip_0.0-1.0>");
+      sendMessage("Example: SETPOSITION 0.5 0.25");
     }
   }
   else if (command.startsWith("SETPLUNGER")) {
-    int position;
-    int n = sscanf(command.c_str(), "SETPLUNGER %d", &position);
-    if (n == 1 && position >= 0 && position <= PLUNGER_MAX_MM) {
-      setPlungerPosition(position);
-      sendMessage("Plunger set to " + String(position) + "mm");
+    String posStr = command.substring(11);  // "SETPLUNGER " = 11 chars
+    posStr.trim();  // Remove whitespace
+    
+    if (posStr.length() > 0) {
+      float position = posStr.toFloat();
+      if (position >= PLUNGER_MIN_POS && position <= PLUNGER_MAX_POS) {
+        setPlungerPosition(position);
+        sendMessage("Plunger set to " + String(position, 3));
+      } else {
+        sendMessage("Invalid SETPLUNGER position: " + String(position, 3) + ". Range: 0.0-1.0");
+      }
     } else {
-      sendMessage("Invalid SETPLUNGER. Usage: SETPLUNGER <0-" + String(PLUNGER_MAX_MM) + ">");
+      sendMessage("Invalid SETPLUNGER. Usage: SETPLUNGER <0.0-1.0>");
+      sendMessage("Example: SETPLUNGER 0.75");
     }
   }
   else if (command.startsWith("SETTIPEJECT")) {
-    int position;
-    int n = sscanf(command.c_str(), "SETTIPEJECT %d", &position);
-    if (n == 1 && position >= 0 && position <= TIP_EJECT_MAX_MM) {
-      setTipEjectPosition(position);
-      sendMessage("Tip eject set to " + String(position) + "mm");
+    String posStr = command.substring(12);  // "SETTIPEJECT " = 12 chars
+    posStr.trim();  // Remove whitespace
+    
+    if (posStr.length() > 0) {
+      float position = posStr.toFloat();
+      if (position >= TIP_EJECT_MIN_POS && position <= TIP_EJECT_MAX_POS) {
+        setTipEjectPosition(position);
+        sendMessage("Tip eject set to " + String(position, 3));
+      } else {
+        sendMessage("Invalid SETTIPEJECT position: " + String(position, 3) + ". Range: 0.0-1.0");
+      }
     } else {
-      sendMessage("Invalid SETTIPEJECT. Usage: SETTIPEJECT <0-" + String(TIP_EJECT_MAX_MM) + ">");
+      sendMessage("Invalid SETTIPEJECT. Usage: SETTIPEJECT <0.0-1.0>");
+      sendMessage("Example: SETTIPEJECT 0.3");
     }
   }
   
-  // LED Commands - Only SETCOLOR supported
+  // Convenience Commands
+  else if (command == "RETRACT") {
+    setPlungerPosition(0.0);
+    setTipEjectPosition(0.0);
+    sendMessage("Both actuators retracted to 0.0");
+  }
+  else if (command == "EXTEND") {
+    setPlungerPosition(1.0);
+    setTipEjectPosition(1.0);
+    sendMessage("Both actuators extended to 1.0");
+  }
+  else if (command == "RETRACTPLUNGER") {
+    setPlungerPosition(0.0);
+    sendMessage("Plunger retracted to 0.0");
+  }
+  else if (command == "EXTENDPLUNGER") {
+    setPlungerPosition(1.0);
+    sendMessage("Plunger extended to 1.0");
+  }
+  else if (command == "RETRACTTIP") {
+    setTipEjectPosition(0.0);
+    sendMessage("Tip eject retracted to 0.0");
+  }
+  else if (command == "EXTENDTIP") {
+    setTipEjectPosition(1.0);
+    sendMessage("Tip eject extended to 1.0");
+  }
+  
+  // LED Commands
   else if (command.startsWith("SETCOLOR")) {
     int r, g, b;
     int n = sscanf(command.c_str(), "SETCOLOR %d %d %d", &r, &g, &b);
@@ -171,7 +231,16 @@ void processCommand(String command) {
       sendMessage("LED color: R:" + String(r) + " G:" + String(g) + " B:" + String(b));
     } else {
       sendMessage("Invalid SETCOLOR. Usage: SETCOLOR r g b");
+      sendMessage("Example: SETCOLOR 255 0 128");
     }
+  }
+  else if (command == "LEDON") {
+    turnOnLEDs();
+    sendMessage("LEDs turned on");
+  }
+  else if (command == "LEDOFF") {
+    turnOffLEDs();
+    sendMessage("LEDs turned off");
   }
   
   // System Commands
@@ -179,15 +248,28 @@ void processCommand(String command) {
     sendMessage(getActuatorStatus());
   }
   else if (command == "INIT") {
-    sendMessage("System initialized");
+    initializeActuators();
+    sendMessage("Actuators initialized (both retracted to 0.0)");
   }
   else if (command == "V" || command == "v") {
     builtInLEDState = !builtInLEDState;
     digitalWrite(LED_BUILTIN, builtInLEDState);
     sendMessage("Built-in LED: " + String(builtInLEDState ? "ON" : "OFF"));
   }
+  else if (command == "HELP") {
+    sendMessage("=== PIPETTE ACTUATOR COMMANDS ===");
+    sendMessage("SETPOSITION <plunger> <tip> - Set both positions (0.0-1.0)");
+    sendMessage("SETPLUNGER <pos> - Set plunger position (0.0-1.0)");
+    sendMessage("SETTIPEJECT <pos> - Set tip eject position (0.0-1.0)");
+    sendMessage("RETRACT/EXTEND - Move both to 0.0/1.0");
+    sendMessage("RETRACTPLUNGER/EXTENDPLUNGER - Move plunger to 0.0/1.0");
+    sendMessage("RETRACTTIP/EXTENDTIP - Move tip to 0.0/1.0");
+    sendMessage("SETCOLOR <r> <g> <b> - Set LED color");
+    sendMessage("STATUS - Show current positions");
+    sendMessage("INIT - Initialize actuators");
+  }
   else {
-    sendMessage("Unknown command: " + command);
+    sendMessage("Unknown command: " + command + " (send HELP for commands)");
   }
 }
 
@@ -222,89 +304,68 @@ void turnOnLEDs() {
   setLEDColor(lastR, lastG, lastB);
 }
 
-// Actuator Functions
+// Linear Actuator Functions
 void initializeActuators() {
-  // Configure actuator pins
-  pinMode(PLUNGER_STEP_PIN, OUTPUT);
-  pinMode(PLUNGER_DIR_PIN, OUTPUT);
-  pinMode(PLUNGER_ENABLE_PIN, OUTPUT);
-  pinMode(TIP_EJECT_STEP_PIN, OUTPUT);
-  pinMode(TIP_EJECT_DIR_PIN, OUTPUT);
-  pinMode(TIP_EJECT_ENABLE_PIN, OUTPUT);
+  // Configure PWM pins
+  pinMode(PLUNGER_PWM_PIN, OUTPUT);
+  pinMode(TIP_EJECT_PWM_PIN, OUTPUT);
   
-  // Enable actuators (LOW = enabled for most stepper drivers)
-  digitalWrite(PLUNGER_ENABLE_PIN, LOW);
-  digitalWrite(TIP_EJECT_ENABLE_PIN, LOW);
+  // Initialize both actuators to retracted position
+  setPlungerPosition(0.0);
+  setTipEjectPosition(0.0);
   
-  // Set initial direction (adjust as needed)
-  digitalWrite(PLUNGER_DIR_PIN, LOW);
-  digitalWrite(TIP_EJECT_DIR_PIN, LOW);
-  
-  // Initialize positions
-  plungerPosition = 0;
-  tipEjectPosition = 0;
+  sendMessage("Linear actuators initialized - Pin " + String(PLUNGER_PWM_PIN) + 
+              " (plunger), Pin " + String(TIP_EJECT_PWM_PIN) + " (tip eject)");
 }
 
-void setPlungerPosition(int position_mm) {
-  if (position_mm < 0) position_mm = 0;
-  if (position_mm > PLUNGER_MAX_MM) position_mm = PLUNGER_MAX_MM;
+void setPlungerPosition(float position) {
+  // Constrain position to valid range
+  if (position < PLUNGER_MIN_POS) position = PLUNGER_MIN_POS;
+  if (position > PLUNGER_MAX_POS) position = PLUNGER_MAX_POS;
   
-  int targetSteps = position_mm * STEPS_PER_MM;
-  int currentSteps = plungerPosition * STEPS_PER_MM;
-  int stepDifference = targetSteps - currentSteps;
+  // Update position and set PWM
+  plungerPosition = position;
+  setActuatorPWM(PLUNGER_PWM_PIN, position);
   
-  if (stepDifference != 0) {
-    bool direction = stepDifference > 0;
-    moveActuator(PLUNGER_STEP_PIN, PLUNGER_DIR_PIN, PLUNGER_ENABLE_PIN, 
-                 abs(stepDifference), direction);
-    plungerPosition = position_mm;
-  }
+  // Small delay to allow actuator to start moving
+  delay(ACTUATOR_SETTLE_TIME);
 }
 
-void setTipEjectPosition(int position_mm) {
-  if (position_mm < 0) position_mm = 0;
-  if (position_mm > TIP_EJECT_MAX_MM) position_mm = TIP_EJECT_MAX_MM;
+void setTipEjectPosition(float position) {
+  // Constrain position to valid range
+  if (position < TIP_EJECT_MIN_POS) position = TIP_EJECT_MIN_POS;
+  if (position > TIP_EJECT_MAX_POS) position = TIP_EJECT_MAX_POS;
   
-  int targetSteps = position_mm * STEPS_PER_MM;
-  int currentSteps = tipEjectPosition * STEPS_PER_MM;
-  int stepDifference = targetSteps - currentSteps;
+  // Update position and set PWM
+  tipEjectPosition = position;
+  setActuatorPWM(TIP_EJECT_PWM_PIN, position);
   
-  if (stepDifference != 0) {
-    bool direction = stepDifference > 0;
-    moveActuator(TIP_EJECT_STEP_PIN, TIP_EJECT_DIR_PIN, TIP_EJECT_ENABLE_PIN, 
-                 abs(stepDifference), direction);
-    tipEjectPosition = position_mm;
-  }
+  // Small delay to allow actuator to start moving
+  delay(ACTUATOR_SETTLE_TIME);
 }
 
-void moveActuator(int stepPin, int dirPin, int enablePin, int steps, bool direction) {
-  // Set direction
-  digitalWrite(dirPin, direction ? HIGH : LOW);
+void setActuatorPWM(int pin, float position) {
+  // Convert float position (0.0-1.0) to PWM value (0-255)
+  int pwmValue = (int)(position * 255);
   
-  // Enable actuator
-  digitalWrite(enablePin, LOW);
+  // Ensure PWM value is within bounds
+  if (pwmValue < 0) pwmValue = 0;
+  if (pwmValue > 255) pwmValue = 255;
   
-  // Move steps
-  for (int i = 0; i < steps; i++) {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(500);  // Adjust for your stepper motor speed
-    digitalWrite(stepPin, LOW);
-    delayMicroseconds(500);
-    
-    // Small delay between steps
-    if (ACTUATOR_SPEED_DELAY > 0) {
-      delay(ACTUATOR_SPEED_DELAY);
-    }
-  }
+  // Set PWM output
+  analogWrite(pin, pwmValue);
 }
 
 String getHeartbeatStatus() {
   unsigned long uptime = (millis() - startTime) / 1000;
-  return "Status: LED=" + String(builtInLEDState ? "ON" : "OFF") + 
+  return "Heartbeat: Plunger=" + String(plungerPosition, 3) + 
+         ", Tip=" + String(tipEjectPosition, 3) + 
          ", Uptime=" + String(uptime) + "s";
 }
 
 String getActuatorStatus() {
-  return "PLUNGER:" + String(plungerPosition) + ",TIP:" + String(tipEjectPosition) + 
-         ",LED=" + String(builtInLEDState ? "ON" : "OFF");
+  return "STATUS: PLUNGER=" + String(plungerPosition, 3) + 
+         ", TIP=" + String(tipEjectPosition, 3) + 
+         ", LED=" + String(builtInLEDState ? "ON" : "OFF") + 
+         ", PWM_PINS=" + String(PLUNGER_PWM_PIN) + "," + String(TIP_EJECT_PWM_PIN);
 }

@@ -2,37 +2,16 @@ controller_manager:
   ros__parameters:
     update_rate: 100  # Hz
 
-    plunger_controller:
-      type: position_controllers/JointTrajectoryController
-
-    tip_eject_controller:
-      type: position_controllers/JointTrajectoryController
+    pipette_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-plunger_controller:
+pipette_controller:
   ros__parameters:
     joints:
       - plunger_joint
-    command_interfaces:
-      - position
-    state_interfaces:
-      - position
-      - velocity
-    state_publish_rate: 50.0
-    action_monitor_rate: 20.0
-    allow_partial_joints_goal: false
-    constraints:
-      stopped_velocity_tolerance: 0.01
-      goal_time: 0.0
-      plunger_joint:
-        trajectory: 0.001
-        goal: 0.001
-
-tip_eject_controller:
-  ros__parameters:
-    joints:
       - tip_eject_joint
     command_interfaces:
       - position
@@ -45,9 +24,12 @@ tip_eject_controller:
     constraints:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.0
+      plunger_joint:
+        trajectory: 0.01  # 1% tolerance for [0,1) range
+        goal: 0.01
       tip_eject_joint:
-        trajectory: 0.001
-        goal: 0.001
+        trajectory: 0.01  # 1% tolerance for [0,1) range
+        goal: 0.01
 
 joint_state_broadcaster:
   ros__parameters:
