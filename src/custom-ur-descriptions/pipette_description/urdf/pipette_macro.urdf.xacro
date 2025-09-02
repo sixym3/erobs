@@ -1,36 +1,20 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <!--
-    Static URDF description for pipette tool with ros2_control integration
+    Static URDF description for pipette tool
     Replace placeholder meshes with your actual CAD files
   -->
 
-  <xacro:include filename="$(find pipette_description)/urdf/pipette.ros2_control.xacro"/>
 
   <xacro:macro
     name="pipette"
     params="name
             prefix
             parent
-            serial_port
-            baudrate
-            plunger_max
-            tip_eject_max
-            use_fake_hardware
             pipette_mass:=0.200
             xyz:='0 0 0'
             rpy:='0 0 0'"
   >
-    <!-- ros2_control parameters -->
-    <xacro:pipette_ros2_control
-      name="${name}"
-      prefix="${prefix}"
-      serial_port="${serial_port}"
-      baudrate="${baudrate}"
-      plunger_max="${plunger_max}"
-      tip_eject_max="${tip_eject_max}"
-      use_fake_hardware="${use_fake_hardware}"
-    />
 
     <!-- Pipette physical dimensions (adjust based on your CAD) -->
     <xacro:property name="pipette_length" value="0.15"/>  <!-- 15cm length -->
@@ -104,7 +88,7 @@
       <parent link="${prefix}pipette_base_link"/>
       <child link="${prefix}plunger_link"/>
       <axis xyz="0 0 1"/>  <!-- Z-axis movement (up/down) -->
-      <limit effort="10.0" lower="0.0" upper="${plunger_max}" velocity="0.01"/>
+      <limit effort="10.0" lower="0.0" upper="1.0" velocity="0.1"/>
     </joint>
 
     <link name="${prefix}plunger_link">
@@ -123,7 +107,7 @@
       <parent link="${prefix}pipette_base_link"/>
       <child link="${prefix}tip_eject_link"/>
       <axis xyz="0 0 1"/>  <!-- Z-axis movement (up/down) -->
-      <limit effort="5.0" lower="0.0" upper="${tip_eject_max}" velocity="0.01"/>
+      <limit effort="5.0" lower="0.0" upper="1.0" velocity="0.1"/>
     </joint>
 
     <link name="${prefix}tip_eject_link">
@@ -137,7 +121,7 @@
 
     <!-- Tool tip reference frame -->
     <joint name="${prefix}pipette_tip_joint" type="fixed">
-      <origin xyz="0 0 ${pipette_length + 0.01}" rpy="0 0 0"/>
+      <origin xyz="0 0 ${pipette_length}" rpy="0 0 0"/>
       <parent link="${prefix}pipette_base_link"/>
       <child link="${prefix}pipette_tip_link"/>
     </joint>

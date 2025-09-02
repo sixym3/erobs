@@ -12,7 +12,7 @@ def generate_launch_description():
     # Declare launch arguments
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/tmp/ttyUR',
+        default_value='/dev/ttyUR',
         description='Serial port for Arduino communication'
     )
     
@@ -22,9 +22,15 @@ def generate_launch_description():
         description='Baudrate for serial communication'
     )
     
+    use_fake_hardware_arg = DeclareLaunchArgument(
+        'use_fake_hardware',
+        default_value='false',
+        description='Use fake hardware for testing without Arduino'
+    )
+    
     start_driver_arg = DeclareLaunchArgument(
         'start_driver',
-        default_value='true',
+        default_value='false',
         description='Whether to start the pipette driver node'
     )
     
@@ -37,6 +43,7 @@ def generate_launch_description():
     # Get launch configurations
     serial_port = LaunchConfiguration('serial_port')
     baudrate = LaunchConfiguration('baudrate')
+    use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     start_driver = LaunchConfiguration('start_driver')
     start_rviz = LaunchConfiguration('start_rviz')
 
@@ -69,6 +76,7 @@ def generate_launch_description():
         parameters=[{
             'serial_port': serial_port,
             'baudrate': baudrate,
+            'use_fake_hardware': use_fake_hardware,
         }],
         condition=IfCondition(start_driver)
     )
@@ -80,6 +88,7 @@ def generate_launch_description():
         # Launch arguments
         serial_port_arg,
         baudrate_arg,
+        use_fake_hardware_arg,
         start_driver_arg,
         start_rviz_arg,
         

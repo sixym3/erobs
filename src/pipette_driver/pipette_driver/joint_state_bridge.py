@@ -19,21 +19,6 @@ class JointStateBridge(Node):
     def __init__(self):
         super().__init__('joint_state_bridge')
         
-        # Subscribe to joint states from GUI
-        self.joint_state_sub = self.create_subscription(
-            JointState,
-            '/joint_states',
-            self.joint_state_callback,
-            10
-        )
-        
-        # Action client to send trajectory commands
-        self.trajectory_client = ActionClient(
-            self,
-            FollowJointTrajectory,
-            '/follow_joint_trajectory'
-        )
-        
         # Track previous positions to avoid spamming
         self.last_positions = {}
         self.last_command_time = 0
@@ -42,7 +27,44 @@ class JointStateBridge(Node):
         # Expected joint names
         self.expected_joints = ['plunger_joint', 'tip_eject_joint']
         
-        self.get_logger().info('Joint State Bridge started - GUI sliders will control hardware')
+        # Action client to send trajectory commands
+        self.trajectory_client = ActionClient(
+            self,
+            FollowJointTrajectory,
+            '/follow_joint_trajectory'
+        )
+        
+        self.get_logger().info('Joint State Bridge starting - waiting for action server...')
+        
+        # Wait for action server to be available before subscribing to joint states
+        self._wait_for_action_server()
+        
+        # Subscribe to joint states from GUI only after action server is ready
+        self.joint_state_sub = self.create_subscription(
+            JointState,
+            '/joint_states',
+            self.joint_state_callback,
+            10
+        )
+        
+        self.get_logger().info('Joint State Bridge ready - GUI sliders will control hardware')
+
+    def _wait_for_action_server(self):
+        """Wait for the FollowJointTrajectory action server to become available"""
+        max_attempts = 30  # 30 seconds max wait
+        attempt = 0
+        
+        while not self.trajectory_client.wait_for_server(timeout_sec=1.0):
+            attempt += 1
+            if attempt >= max_attempts:
+                self.get_logger().error(
+                    'Timeout waiting for FollowJointTrajectory action server after 30 seconds'
+                )
+                raise RuntimeError('Action server not available')
+            
+            self.get_logger().info(f'Waiting for action server... (attempt {attempt}/30)')
+        
+        self.get_logger().info('Action server found and ready')
 
     def joint_state_callback(self, msg):
         """Process joint state messages from GUI and send to hardware"""

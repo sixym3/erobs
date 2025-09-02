@@ -19,10 +19,12 @@ def generate_launch_description():
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='false')
     serial_port_arg = DeclareLaunchArgument('serial_port', default_value='/dev/ttyUR')
     baudrate_arg = DeclareLaunchArgument('baudrate', default_value='115200')
+    use_fake_hardware_arg = DeclareLaunchArgument('use_fake_hardware', default_value='false')
     
     use_sim_time = LaunchConfiguration('use_sim_time')
     serial_port = LaunchConfiguration('serial_port')
     baudrate = LaunchConfiguration('baudrate')
+    use_fake_hardware = LaunchConfiguration('use_fake_hardware')
 
     # MoveIt Configuration for standalone pipette
     moveit_config = (
@@ -32,12 +34,7 @@ def generate_launch_description():
             "urdf", 
             "pipette.urdf.xacro"
         ), mappings={
-            "use_fake_hardware": "false",
-            "serial_port": serial_port,
-            "baudrate": baudrate,
-            "parent": "tool0",
-            "plunger_max": "1.0",
-            "tip_eject_max": "1.0"
+            "parent": "tool0"
         })
         .robot_description_semantic(file_path=os.path.join(
             get_package_share_directory("pipette_moveit_config"),
@@ -97,39 +94,18 @@ def generate_launch_description():
         ],
     )
 
-    # Controller Manager - manages ros2_control controllers
-    controller_manager = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        name="controller_manager",
-        output="both",
-        parameters=[
-            moveit_config.robot_description,
-            os.path.join(
-                get_package_share_directory("pipette_description"), 
-                "config", 
-                "pipette_controllers.yaml"
-            ),
-            {"use_sim_time": use_sim_time},
-        ],
-    )
-
-    # Joint State Broadcaster - publishes joint states from hardware
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        name="joint_state_broadcaster_spawner",
-        arguments=["joint_state_broadcaster"],
-        output="screen",
-    )
-
-    # Pipette Controller Spawner - spawns the pipette trajectory controller
-    pipette_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        name="pipette_controller_spawner", 
-        arguments=["pipette_controller"],
-        output="screen",
+    # Pipette Driver Node - provides FollowJointTrajectory action server
+    pipette_driver_node = Node(
+        package='pipette_driver',
+        executable='pipette_driver_node',
+        name='pipette_driver_node',
+        output='screen',
+        parameters=[{
+            'serial_port': serial_port,
+            'baudrate': baudrate,
+            'use_fake_hardware': use_fake_hardware,
+            'use_sim_time': use_sim_time,
+        }],
     )
 
     # Static transform publisher (world to tool0 for visualization)
@@ -146,13 +122,12 @@ def generate_launch_description():
         use_sim_time_arg,
         serial_port_arg,
         baudrate_arg,
+        use_fake_hardware_arg,
         
         # Nodes
         static_tf_node,
         robot_state_publisher,
-        controller_manager,
-        joint_state_broadcaster_spawner,
-        pipette_controller_spawner,
+        pipette_driver_node,  # Provides action server + joint states
         move_group_node,
         rviz_node,
     ])

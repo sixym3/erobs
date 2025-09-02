@@ -16,12 +16,14 @@ def generate_launch_description():
     """
     
     # Arguments
-    serial_port_arg = DeclareLaunchArgument('serial_port', default_value='/tmp/ttyUR')
+    serial_port_arg = DeclareLaunchArgument('serial_port', default_value='/dev/ttyUR')
     baudrate_arg = DeclareLaunchArgument('baudrate', default_value='115200')
+    use_fake_hardware_arg = DeclareLaunchArgument('use_fake_hardware', default_value='false')
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='false')
     
     serial_port = LaunchConfiguration('serial_port')
     baudrate = LaunchConfiguration('baudrate')
+    use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     # Get URDF content
@@ -32,9 +34,6 @@ def generate_launch_description():
     from launch.substitutions import Command
     robot_description_content = Command([
         'xacro ', urdf_file,
-        ' use_fake_hardware:=true',
-        ' serial_port:=/tmp/ttyUR',
-        ' baudrate:=115200',
         ' parent:=tool0'
     ])
     
@@ -91,6 +90,7 @@ def generate_launch_description():
         parameters=[{
             'serial_port': serial_port,
             'baudrate': baudrate,
+            'use_fake_hardware': use_fake_hardware,
             'use_sim_time': use_sim_time,
         }],
     )
@@ -119,6 +119,7 @@ def generate_launch_description():
         # Arguments
         serial_port_arg,
         baudrate_arg,
+        use_fake_hardware_arg,
         use_sim_time_arg,
         
         # Nodes

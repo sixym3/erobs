@@ -91,3 +91,7 @@ target/
 
 #Pixi
 pixi.lock
+
+#Claude
+.claude/
+CLAUDE.md

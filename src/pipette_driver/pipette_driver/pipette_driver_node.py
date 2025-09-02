@@ -7,6 +7,7 @@ from rclpy.executors import MultiThreadedExecutor
 from control_msgs.action import FollowJointTrajectory
 from std_srvs.srv import SetBool
 from std_msgs.msg import ColorRGBA
+from sensor_msgs.msg import JointState
 import serial
 import time
 import threading
@@ -23,11 +24,12 @@ class PipetteDriverNode(Node):
         super().__init__('pipette_driver_node')
         
         # Declare parameters
-        self.declare_parameter('serial_port', '/tmp/ttyUR')
+        self.declare_parameter('serial_port', '/dev/ttyUR')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('timeout', 1.0)
         self.declare_parameter('plunger_max_m', 1.0)    # Percentage range [0, 1)
         self.declare_parameter('tip_max_m', 1.0)        # Percentage range [0, 1)
+        self.declare_parameter('use_fake_hardware', False)  # Enable fake hardware for testing without Arduino
         
         # Get parameters
         self.serial_port = self.get_parameter('serial_port').value
@@ -35,6 +37,7 @@ class PipetteDriverNode(Node):
         self.timeout = self.get_parameter('timeout').value
         self.plunger_max_m = self.get_parameter('plunger_max_m').value
         self.tip_max_m = self.get_parameter('tip_max_m').value
+        self.use_fake_hardware = self.get_parameter('use_fake_hardware').value
         
         # Serial connection
         self.serial_connection = None
@@ -60,6 +63,7 @@ class PipetteDriverNode(Node):
             'follow_joint_trajectory',
             self.follow_joint_trajectory_callback
         )
+        self.get_logger().info('FollowJointTrajectory action server ready')
         
         # Create service for LED control
         self.led_service = self.create_service(
@@ -76,10 +80,23 @@ class PipetteDriverNode(Node):
             10
         )
         
-        # Initialize hardware connection
-        self.init_hardware()
+        # Create joint state publisher
+        self.joint_state_publisher = self.create_publisher(
+            JointState,
+            'joint_states',
+            10
+        )
         
-        self.get_logger().info(f'Pipette driver node started on {self.serial_port}')
+        # Timer for periodic joint state publishing (10Hz)
+        self.joint_state_timer = self.create_timer(0.1, self._publish_joint_states)
+        
+        # Initialize hardware connection
+        if self.use_fake_hardware:
+            self.get_logger().info('Pipette driver started with FAKE HARDWARE - no Arduino needed')
+            self.init_fake_hardware()
+        else:
+            self.get_logger().info(f'Pipette driver node started on {self.serial_port}')
+            self.init_hardware()
 
     def init_hardware(self):
         """Initialize serial connection to Arduino"""
@@ -117,6 +134,26 @@ class PipetteDriverNode(Node):
             self.get_logger().error(f"Failed to initialize hardware: {e}")
             return False
 
+    def init_fake_hardware(self):
+        """Initialize fake hardware for testing without Arduino"""
+        try:
+            self.get_logger().info("Fake hardware initialized successfully - ready for testing")
+            
+            # No serial connection needed in fake hardware mode
+            self.serial_connection = None
+            
+            # Start fake hardware response system
+            self.running = True
+            
+            # Initialize fake hardware positions
+            self._update_position_feedback()
+            
+            return True
+            
+        except Exception as e:
+            self.get_logger().error(f"Failed to initialize fake hardware: {e}")
+            return False
+
     def follow_joint_trajectory_callback(self, goal_handle):
         """Handle FollowJointTrajectory action requests"""
         self.get_logger().info('Received joint trajectory goal')
@@ -151,7 +188,13 @@ class PipetteDriverNode(Node):
                 continue
             
             # Send combined command to Arduino (direct percentage values)
-            self._send_command(f"SETPOSITION {plunger_pos:.3f} {tip_pos:.3f}")
+            if self.use_fake_hardware:
+                # In fake hardware mode, update positions immediately
+                self.plunger_position_pct = plunger_pos
+                self.tip_position_pct = tip_pos
+                self.get_logger().debug(f"Fake HW: Set positions to plunger={plunger_pos:.3f}, tip={tip_pos:.3f}")
+            else:
+                self._send_command(f"SETPOSITION {plunger_pos:.3f} {tip_pos:.3f}")
             
             # Wait for movement to complete
             time.sleep(1.0)  # Simple wait - could be improved with feedback
@@ -178,8 +221,14 @@ class PipetteDriverNode(Node):
         self.get_logger().info(f'Received LED request: {request.data}')
         
         # Send LED command to Arduino
-        cmd = "SETCOLOR 255 255 255" if request.data else "SETCOLOR 00 00 00"
-        success = self._send_command(cmd)
+        if self.use_fake_hardware:
+            # In fake hardware mode, just simulate LED control
+            self.led_on = request.data
+            success = True
+            self.get_logger().debug(f"Fake HW: LED set to {'ON' if request.data else 'OFF'}")
+        else:
+            cmd = "SETCOLOR 255 255 255" if request.data else "SETCOLOR 00 00 00"
+            success = self._send_command(cmd)
         
         if success:
             self.led_on = request.data
@@ -205,8 +254,13 @@ class PipetteDriverNode(Node):
         self.get_logger().info(f'Received color command: R={r}, G={g}, B={b}')
         
         # Send SETCOLOR command to Arduino
-        cmd = f"SETCOLOR {r} {g} {b}"
-        success = self._send_command(cmd)
+        if self.use_fake_hardware:
+            # In fake hardware mode, just simulate color control
+            success = True
+            self.get_logger().debug(f"Fake HW: Color set to R={r}, G={g}, B={b}")
+        else:
+            cmd = f"SETCOLOR {r} {g} {b}"
+            success = self._send_command(cmd)
         
         if success:
             self.get_logger().info(f'Color set successfully')
@@ -253,19 +307,81 @@ class PipetteDriverNode(Node):
         """Process responses from Arduino to extract position feedback"""
         self.get_logger().debug(f"Arduino response: {response}")
         
-        # Look for position information in responses (Arduino format: STATUS: PLUNGER=0.500, TIP=0.300, ...)
-        plunger_match = re.search(r'PLUNGER=([0-9]*\.?[0-9]+)', response)
-        if plunger_match:
-            self.plunger_position_pct = float(plunger_match.group(1))
+        try:
+            # Look for position information in responses
+            # Supports multiple formats:
+            # - STATUS: PLUNGER=0.500, TIP=0.300
+            # - POS:0.500,0.300
+            # - PLUNGER=0.500 TIP=0.300
             
-        tip_match = re.search(r'TIP=([0-9]*\.?[0-9]+)', response)
-        if tip_match:
-            self.tip_position_pct = float(tip_match.group(1))
+            # Try new compact format first: POS:plunger,tip
+            pos_match = re.search(r'POS:([0-9]*\.?[0-9]+),([0-9]*\.?[0-9]+)', response)
+            if pos_match:
+                plunger_pos = float(pos_match.group(1))
+                tip_pos = float(pos_match.group(2))
+                
+                # Validate range
+                if 0.0 <= plunger_pos < self.PLUNGER_MAX:
+                    self.plunger_position_pct = plunger_pos
+                if 0.0 <= tip_pos < self.TIP_MAX:
+                    self.tip_position_pct = tip_pos
+                    
+                self.get_logger().debug(f"Parsed positions: plunger={plunger_pos:.3f}, tip={tip_pos:.3f}")
+                return
+            
+            # Fall back to individual parsing (legacy format)
+            plunger_match = re.search(r'PLUNGER=([0-9]*\.?[0-9]+)', response)
+            if plunger_match:
+                plunger_pos = float(plunger_match.group(1))
+                if 0.0 <= plunger_pos < self.PLUNGER_MAX:
+                    self.plunger_position_pct = plunger_pos
+                    
+            tip_match = re.search(r'TIP=([0-9]*\.?[0-9]+)', response)
+            if tip_match:
+                tip_pos = float(tip_match.group(1))
+                if 0.0 <= tip_pos < self.TIP_MAX:
+                    self.tip_position_pct = tip_pos
+                    
+        except (ValueError, IndexError) as e:
+            self.get_logger().warn(f"Failed to parse Arduino response '{response}': {e}")
 
     def _update_position_feedback(self):
         """Request position status from Arduino"""
-        self._send_command("STATUS")
-        time.sleep(0.05)  # Small delay to allow response
+        if self.use_fake_hardware:
+            # In fake hardware mode, positions are already updated when commands are sent
+            self.get_logger().debug(f"Fake HW: Current positions - plunger={self.plunger_position_pct:.3f}, tip={self.tip_position_pct:.3f}")
+        else:
+            self._send_command("STATUS")
+            time.sleep(0.05)  # Small delay to allow response
+
+    def _publish_joint_states(self):
+        """Publish current joint states for RViz/MoveIt feedback"""
+        msg = JointState()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = ""
+        
+        # Joint names must match URDF
+        msg.name = ['plunger_joint', 'tip_eject_joint']
+        
+        # Current positions (from Arduino feedback or mock values)
+        msg.position = [
+            float(self.plunger_position_pct),
+            float(self.tip_position_pct)
+        ]
+        
+        # Velocities (could be enhanced with actual velocity feedback later)
+        msg.velocity = [0.0, 0.0]
+        
+        # Efforts (not used for pipette)
+        msg.effort = [0.0, 0.0]
+        
+        self.joint_state_publisher.publish(msg)
+        
+        # Debug logging for joint state publishing
+        self.get_logger().debug(
+            f"Publishing joint states: plunger={self.plunger_position_pct:.3f}, "
+            f"tip={self.tip_position_pct:.3f}"
+        )
 
     def destroy_node(self):
         """Clean shutdown"""
