@@ -3,7 +3,7 @@
 <package format="3">
   <name>pipette_description</name>
   <version>1.0.0</version>
-  <description>URDF description for pipette tool with actuators and LED control</description>
+  <description>Static URDF description for pipette tool - visual/collision geometry only</description>
   
   <maintainer email="xiao.yuan0217@gmail.com">eric</maintainer>
   <license>Apache-2.0</license>

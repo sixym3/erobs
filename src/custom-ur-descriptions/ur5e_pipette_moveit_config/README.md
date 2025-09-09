@@ -1,175 +1,261 @@
 # UR5e Pipette MoveIt Configuration
 
-⚠️ **WARNING: This package is NOT TESTED yet** ⚠️
-
-## Status
-
-This package is a **work-in-progress** and has not been tested with real hardware or in simulation. It may contain outdated configurations and incompatible controller setups.
-
-**Current Status**: 🔴 **Not Ready for Use**
+MoveIt motion planning configuration package for UR5e robot arm with static pipette tool. This package provides motion planning capabilities for the UR5e arm with pipette treated as fixed end effector geometry.
 
 ## Overview
 
-This package is intended to provide MoveIt motion planning configuration for a combined UR5e robot arm with attached pipette tool. It aims to provide:
+This package provides a MoveIt setup for the UR5e robot with attached pipette tool, enabling motion planning, visualization, and control of the robot arm with the pipette as a static end effector for collision checking.
 
-- Complete system motion planning (UR5e arm + pipette tool)
-- MoveIt integration with dual-arm coordination
-- RViz motion planning interface
-- Hardware controller integration
+### Features
+- **Arm Motion Planning** - Motion planning for UR5e arm with pipette geometry
+- **MoveIt Integration** - Full MoveIt stack with planning plugins
+- **Dual Hardware Support** - Works with both simulated and real hardware
+- **Static End Effector** - Pipette treated as fixed geometry for collision avoidance
+- **RViz Visualization** - Pre-configured RViz setup with Motion Planning interface
+- **External Driver Compatible** - Works with separate pipette control driver
+- **Safety Features** - Joint limits and collision detection including pipette geometry
 
 ## Package Contents
 
 ```
 ur5e_pipette_moveit_config/
 ├── config/
-│   ├── moveit_controllers.yaml      # Controller configurations
-│   ├── kinematics.yaml             # Inverse kinematics solvers
-│   ├── joint_limits.yaml           # Combined joint limits
-│   └── moveit.rviz                 # RViz configuration
+│   ├── moveit_controllers.yaml     # MoveIt controller configuration (arm only)
+│   ├── kinematics.yaml            # Inverse kinematics solvers  
+│   ├── joint_limits.yaml          # UR5e arm joint limits
+│   ├── ur_pipette_controllers.yaml # Hardware controller setup
+│   └── moveit.rviz                # RViz configuration
 ├── launch/
-│   ├── demo.launch.py              # Main demo launch
-│   ├── move_group.launch.py        # MoveIt move_group
-│   └── [multiple untested launch files]
+│   ├── ur5e_pipette_fake_hardware.launch.py  # Complete system with simulation
+│   ├── ur5e_pipette_real_hardware.launch.py  # Real hardware integration
+│   └── demo.launch.py                         # MoveIt demo with pipette
 ├── srdf/
-│   └── ur.srdf                     # Semantic robot description
-└── package.xml
+│   └── ur.srdf                    # Semantic robot description
+└── rviz/
+    └── view_robot.rviz           # Robot visualization configuration
 ```
 
-## Known Issues
-
-- ⚠️ **Untested integration** - No validation with current pipette_driver
-- ⚠️ **Controller conflicts** - May have conflicting controller configurations
-- ⚠️ **Outdated launch files** - Multiple untested launch configurations
-- ⚠️ **Unverified planning groups** - Planning groups may not work correctly
-- ⚠️ **Missing dependencies** - Package dependencies may be incomplete or incorrect
-
-## Problems with Current State
-
-### Duplicate/Conflicting Files
-This package contains multiple duplicate files that suggest incomplete setup:
-- Multiple `demo.launch.py` files
-- Duplicate controller configurations
-- Mixed launch file locations (root + launch/ directory)
-
-### Likely Incompatible with Current Architecture
-The current working pipette system uses:
-- Action-based control (`FollowJointTrajectory`)
-- Standalone pipette_driver_node
-- Manual joint slider control
-
-This package likely assumes:
-- ros2_control integration (which was removed)
-- Different controller architecture
-- Untested UR5e + pipette coordination
-
-## Testing Required
-
-**DO NOT RUN** the following commands until testing is complete:
+## Prerequisites
 
 ```bash
-# These may fail or cause issues:
-# ros2 launch ur5e_pipette_moveit_config demo.launch.py
-# ros2 launch ur5e_pipette_moveit_config move_group.launch.py
+# Install MoveIt and UR dependencies
+sudo apt install ros-humble-moveit ros-humble-moveit-planners-ompl 
+sudo apt install ros-humble-ur ros-humble-ur-robot-driver
+sudo apt install ros-humble-joint-state-publisher-gui
+
+# Build required packages
+cd /path/to/your/workspace
+colcon build --packages-select ur5e_pipette_robot_description ur5e_pipette_moveit_config pipette_description
+source install/setup.bash
 ```
 
-## Recommended Approach
+## Quick Start
 
-**Instead of using this untested package, use the working approach:**
+### 1. Simulation Mode (Fake Hardware)
+Launch complete system with simulated hardware:
 
-### Separate Control Strategy
 ```bash
-# Terminal 1: UR5e robot control
-ros2 launch ur_robot_driver ur_control.launch.py robot_ip:=192.168.1.101
+# Launch MoveIt with fake hardware
+ros2 launch ur5e_pipette_moveit_config ur5e_pipette_fake_hardware.launch.py
 
-# Terminal 2: UR5e MoveIt (standard)
-ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur5e
-
-# Terminal 3: Pipette control (standalone)
-ros2 launch pipette_moveit_config driver_with_rviz.launch.py
-
-# Terminal 4: UR tool communication (if needed)
-ros2 run ur_robot_driver tool_communication.py --ros-args -p robot_ip:=192.168.1.101
+# Expected behavior:
+# - RViz opens with UR5e + pipette model
+# - Motion Planning interface available
+# - Can plan and execute arm motions
+# - Pipette geometry included in collision checking
+# - Pipette control handled by external driver (if running)
 ```
 
-This approach gives you:
-- ✅ **Tested UR5e control** with standard UR packages
-- ✅ **Tested pipette control** with working pipette packages
-- ✅ **Reliable operation** with known-good configurations
-- ✅ **Independent debugging** of each system
+### 2. Real Hardware Mode
+Launch with real UR5e robot:
 
-## Issues to Fix Before Use
+```bash
+# Launch with real hardware (replace IP address)
+ros2 launch ur5e_pipette_moveit_config ur5e_pipette_real_hardware.launch.py robot_ip:=192.168.1.100
 
-1. **Clean up duplicate files**:
-   - Remove duplicate launch files
-   - Consolidate controller configurations
-   - Fix file organization
+# Expected behavior:
+# - Connects to real UR5e robot
+# - MoveIt motion planning for arm
+# - Pipette geometry for collision avoidance
+# - Separate pipette driver handles pipette control
+```
 
-2. **Update controller integration**:
-   - Verify compatibility with action-based pipette_driver
-   - Test controller namespacing
-   - Validate MoveIt controller manager setup
+### 3. Demo Mode
+Simple MoveIt demo with pipette:
 
-3. **Test planning groups**:
-   - Verify SRDF planning group definitions
-   - Test kinematics solvers
-   - Validate joint limits for combined system
+```bash
+# Launch demo mode
+ros2 launch ur5e_pipette_moveit_config demo.launch.py
 
-4. **Hardware validation**:
-   - Test with real UR5e + pipette hardware
-   - Verify coordinate frame relationships
-   - Test motion planning execution
+# Features:
+# - MoveIt motion planning interface
+# - Pre-configured robot with pipette
+# - No hardware dependencies
+```
 
-## Development Status
+## Launch Arguments
 
-### Current Working Packages ✅
-- `pipette_driver` - Hardware control and action server
-- `pipette_description` - URDF robot description  
-- `pipette_moveit_config` - Standalone pipette motion planning
+### Common Arguments
+- **`ur_type`** - UR robot type (default: `ur5e`)
+- **`robot_ip`** - Robot IP address (required for real hardware)
+- **`use_fake_hardware`** - Use simulated hardware (default: `false` for real, `true` for fake)
+- **`launch_rviz`** - Start RViz visualization (default: `true`)
 
-### Packages Needing Work ❌
-- `ur5e_pipette_robot_description` - Untested URDF integration
-- `ur5e_pipette_moveit_config` - This package (untested MoveIt config)
+### Hardware-Specific Arguments
+- **`controllers_file`** - Controller configuration file
+- **`description_package`** - Robot description package name
+- **`description_file`** - Main URDF file name
 
-## Future Development
+## Planning Groups
 
-To make this package functional:
+The SRDF defines these planning groups:
 
-1. **Start with working packages**:
-   - Ensure `pipette_moveit_config` works perfectly
-   - Test UR5e integration separately
+### `ur_arm`
+- **Purpose**: UR5e arm motion planning
+- **Joints**: shoulder_pan, shoulder_lift, elbow, wrist_1, wrist_2, wrist_3
+- **Use case**: Primary group for arm motion planning
 
-2. **Gradual integration**:
-   - Test URDF combination first
-   - Add MoveIt configuration incrementally
-   - Validate each step with hardware
+### `ur_arm_with_pipette`
+- **Purpose**: Complete system reference
+- **Contains**: ur_arm group 
+- **Use case**: Planning with pipette geometry for collision checking
 
-3. **Clean package structure**:
-   - Remove duplicate files
-   - Organize launch files properly
-   - Update package dependencies
+## Architecture Notes
 
-4. **Comprehensive testing**:
-   - Test motion planning for combined system
-   - Validate collision detection
-   - Test hardware integration
+### Static End Effector Design
+- **Fixed pipette**: No movable joints in MoveIt planning
+- **Collision geometry**: Pipette shape included for path planning
+- **External control**: Pipette plunger/tip ejection handled by separate driver
+- **End effector reference**: `pipette_tip_link` as TCP reference point
 
-## Contributing
+### Controller Configuration
+The system uses these controllers:
+- **`scaled_joint_trajectory_controller`**: UR arm motion control
+- **No pipette controllers**: Pipette control handled externally
 
-If you want to help develop this package:
+### Integration with Drivers
+- **UR arm control**: Standard UR robot drivers
+- **Pipette control**: Separate pipette_driver node (external)
+- **Coordination**: Both systems work independently
 
-1. **Start with the working standalone packages**
-2. **Test integration step-by-step**
-3. **Document any issues found**  
-4. **Update this README when testing is complete**
+## Usage Patterns
+
+### Motion Planning with Pipette
+```python
+# Python example using MoveIt Python interface
+import moveit_commander
+
+# Initialize MoveIt
+robot = moveit_commander.RobotCommander()
+scene = moveit_commander.PlanningSceneInterface()
+
+# Plan arm motion (pipette moves with arm)
+arm_group = moveit_commander.MoveGroupCommander("ur_arm")
+arm_group.set_pose_target(target_pose)
+plan = arm_group.plan()
+arm_group.execute(plan, wait=True)
+
+# Pipette control handled separately by pipette_driver
+```
+
+### Adding Collision Objects
+```python
+# Add collision objects that consider pipette geometry
+scene = moveit_commander.PlanningSceneInterface()
+
+# Add table
+table_pose = geometry_msgs.msg.PoseStamped()
+table_pose.header.frame_id = "base_link"
+table_pose.pose.position.z = -0.1
+scene.add_box("table", table_pose, size=(2.0, 2.0, 0.1))
+```
+
+## Troubleshooting
+
+### MoveIt Planning Fails
+```bash
+# Check planning group configuration
+ros2 param get /move_group planning_plugin
+
+# Verify robot model loads correctly
+ros2 topic echo /robot_description --once
+
+# Check joint states are published
+ros2 topic echo /joint_states
+```
+
+### RViz Visualization Issues
+```bash
+# Check robot model display
+# - Verify Robot Description topic: /robot_description  
+# - Check Fixed Frame: base_link or map
+# - Verify TF tree is complete
+
+# Check TF tree
+ros2 run tf2_tools view_frames
+```
+
+### Controller Connection Issues
+```bash
+# List available controllers
+ros2 control list_controllers
+
+# Check controller status
+ros2 control list_hardware_interfaces
+
+# For real hardware, verify robot IP and network connection
+ping <robot_ip>
+```
+
+### Missing Pipette Geometry
+```bash
+# Check pipette description package
+ros2 pkg list | grep pipette_description
+
+# Verify URDF includes pipette
+ros2 run xacro xacro $(ros2 pkg prefix ur5e_pipette_robot_description)/share/ur5e_pipette_robot_description/urdf/ur_with_pipette.xacro | grep pipette
+```
+
+## Configuration Files
+
+### `moveit_controllers.yaml`
+Defines MoveIt controller interface:
+- Maps planning groups to hardware controllers
+- Configures action interfaces for arm control
+- No pipette controllers (handled externally)
+
+### `ur.srdf` 
+Semantic robot description:
+- Planning groups definition
+- Collision avoidance rules
+- End effector configuration
+- Static pipette geometry integration
+
+### `ur_pipette_controllers.yaml`
+Hardware controller configuration:
+- UR arm controller setup
+- No pipette-specific controllers
+- Compatible with standard UR drivers
 
 ## Related Packages
 
-**Use these tested packages instead:**
-- `ur_robot_driver` - ✅ UR robot control
-- `ur_moveit_config` - ✅ UR MoveIt configuration
-- `pipette_driver` - ✅ Pipette hardware control
-- `pipette_moveit_config` - ✅ Pipette motion planning
+This package works with:
+- **`ur5e_pipette_robot_description`** - Combined robot URDF
+- **`pipette_description`** - Pipette URDF description
+- **`pipette_driver`** - External pipette control (separate)
+- **`ur_robot_driver`** - UR robot hardware interface
 
----
+## Development Notes
 
-**Until this package is properly tested, use the separate control strategy described above.**
+### Modifying Planning Groups
+1. Edit `srdf/ur.srdf` for group definitions
+2. Update controller mappings in `config/moveit_controllers.yaml`
+3. Test with `demo.launch.py` first
+4. Validate with hardware launch files
+
+### Adding New End Effectors
+To replace pipette with different tool:
+1. Create new tool description package
+2. Update `ur5e_pipette_robot_description` URDF include
+3. Modify SRDF collision rules
+4. Update package dependencies

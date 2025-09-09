@@ -104,21 +104,16 @@
 
 
   <!-- pipette tool -->
-    <xacro:arg name="serial_port" default="/tmp/ttyUR"/>
-    <xacro:arg name="baudrate" default="115200"/>
-    <xacro:arg name="plunger_max" default="0.010"/>
-    <xacro:arg name="tip_eject_max" default="0.005"/>
+    <xacro:arg name="pipette_mass" default="0.200"/>
+    <xacro:arg name="pipette_xyz" default="0 0 0"/>
+    <xacro:arg name="pipette_rpy" default="0 0 0"/>
 
     <xacro:pipette
       name="pipette"
       prefix="$(arg tf_prefix)"
-      parent="$(arg tf_prefix)flange"
-      serial_port="$(arg serial_port)"
-      baudrate="$(arg baudrate)"
-      plunger_max="$(arg plunger_max)"
-      tip_eject_max="$(arg tip_eject_max)"
-      use_fake_hardware="$(arg mock_hardware)"
-      xyz="0 0 0"
-      rpy="0 0 0"/>
+      parent="$(arg tf_prefix)tool0"
+      pipette_mass="$(arg pipette_mass)"
+      xyz="$(arg pipette_xyz)"
+      rpy="$(arg pipette_rpy)"/>
 
 </robot>

@@ -43,12 +43,7 @@
       tool_contact_controller:
         type: ur_controllers/ToolContactController
       
-      #### adding pipette controllers
-      plunger_controller:
-        type: position_controllers/JointTrajectoryController
-        
-      tip_eject_controller:
-        type: position_controllers/JointTrajectoryController
+      #### pipette controllers removed - handled by external driver
 
       # The way this is currently implemented upstream doesn't really work for us. When using
       # position control, the robot will have a tracking error. However, limits will be enforced
@@ -196,41 +191,4 @@
     ros__parameters:
       tf_prefix: "$(var tf_prefix)"
 
-  ## Pipette Controllers
-  plunger_controller:
-    ros__parameters:
-      joints:
-        - $(var tf_prefix)plunger_joint
-      command_interfaces:
-        - position
-      state_interfaces:
-        - position
-        - velocity
-      state_publish_rate: 50.0
-      action_monitor_rate: 20.0
-      allow_partial_joints_goal: false
-      constraints:
-        stopped_velocity_tolerance: 0.01
-        goal_time: 0.0
-        $(var tf_prefix)plunger_joint:
-          trajectory: 0.001
-          goal: 0.001
-
-  tip_eject_controller:
-    ros__parameters:
-      joints:
-        - $(var tf_prefix)tip_eject_joint
-      command_interfaces:
-        - position
-      state_interfaces:
-        - position
-        - velocity
-      state_publish_rate: 50.0
-      action_monitor_rate: 20.0
-      allow_partial_joints_goal: false
-      constraints:
-        stopped_velocity_tolerance: 0.01
-        goal_time: 0.0
-        $(var tf_prefix)tip_eject_joint:
-          trajectory: 0.001
-          goal: 0.001
+  ## Pipette Controllers removed - handled by external driver

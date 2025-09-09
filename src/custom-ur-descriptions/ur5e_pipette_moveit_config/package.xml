@@ -3,9 +3,7 @@
 <package format="3">
   <name>ur5e_pipette_moveit_config</name>
   <version>1.0.0</version>
-  <description>
-     MoveIt configuration package for UR5e robot with pipette tool
-  </description>
+  <description>MoveIt motion planning configuration for UR5e robot arm with static pipette tool. Provides arm motion planning and control with pipette as fixed end effector geometry.</description>
   <maintainer email="xiao.yuan0217@gmail.com">eric</maintainer>
 
   <license>Apache-2.0</license>
@@ -24,7 +22,6 @@
   <exec_depend>moveit_simple_controller_manager</exec_depend>
   <exec_depend>joint_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
   <exec_depend>xacro</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>moveit_configs_utils</exec_depend>
@@ -39,7 +36,6 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>ur5e_pipette_robot_description</exec_depend>
   <exec_depend>pipette_description</exec_depend>
-  <exec_depend>pipette_driver</exec_depend>
   <exec_depend>ur_moveit_config</exec_depend>
   <exec_depend>xacro</exec_depend>
 
