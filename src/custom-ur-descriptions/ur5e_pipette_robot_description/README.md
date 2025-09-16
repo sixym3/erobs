@@ -108,9 +108,6 @@ The main URDF file accepts these xacro arguments:
 ```bash
 # Launch with default parameters
 ros2 launch ur5e_pipette_robot_description display.launch.py
-
-# With joint state GUI for arm control
-ros2 launch ur5e_pipette_robot_description display.launch.py gui:=true
 ```
 
 ### Custom Configuration
