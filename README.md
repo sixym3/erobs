@@ -10,9 +10,9 @@ Each manifest in the [docker](./docker) directory is a container image that can 
 ### Source Contents
 
 - [ros2.repos](./src/ros2.repos): ROS2 workspace file for downloading the required external ROS2 dependencies.
-- [robotiq-hande](./src/robotiq-hande): Source directory for the HandE gripper.
-  - [gripper_service](./src/robotiq-hande/gripper_service): ROS2 package for controlling the HandE gripper.
-  - Other packages are pulled in through rosdep.
+- [end_effectors](./src/end_effectors): End effector drivers and configuration for grippers and vacuum systems.
+  - [end_effectors.repos](./src/end_effectors/end_effectors.repos): VCS file for downloading robotiq_hande_driver, robotiq_hande_description, ros2_epick_gripper, and serial packages.
+  - [epick_config](./src/end_effectors/epick_config): Site-specific configuration overlay for EPick vacuum gripper.
 - [custom-ur-descriptions](./src/custom-ur-descriptions): Source directory for custom UR robot arm descriptions (e.g., attaching grippers or other end effectors).
   - [ur3e_hande_robot_description](./src/custom-ur-descriptions/ur3e_hande_robot_description): ROS2 package for defining the UR3e robot arm with the HandE gripper.
   - [ur3e_hande_moveit_config](./src/custom-ur-descriptions/ur3e_hande_moveit_config): ROS2 package for configuring MoveIt for the UR3e robot arm with the HandE gripper.
