@@ -21,10 +21,10 @@ This pulls in:
 
 ```bash
 # Install dependencies
-rosdep install --from-paths src --ignore-src -y --skip-keys moveit_studio_behavior_interface
+bash setup.sh
 
 # Build workspace (skip epick_moveit_studio)
-colcon build --packages-skip epick_moveit_studio
+bash build.sh
 
 ## EPick Configuration
 
