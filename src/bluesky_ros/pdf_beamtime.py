@@ -45,9 +45,13 @@ def iterative_plan(node, n_iter, motor=OT_stage_3_X, safe_position=0.0):  # noqa
     load_position = list(motor.read().values())[0]["value"]
     for i in range(n_iter):
         print(f"Starting iteration {i}")
-        yield from bps.abs_set(node, ["holder_shaft_storage", "holder_shaft_inbeam", "PICK_UP"], group="A")
+        yield from bps.abs_set(
+            node, ["holder_shaft_storage", "holder_shaft_inbeam", "PICK_UP"], group="A"
+        )
         yield from bps.wait("A")
-        yield from bps.abs_set(node, ["holder_shaft_storage", "holder_shaft_inbeam", "PLACE"], group="A")
+        yield from bps.abs_set(
+            node, ["holder_shaft_storage", "holder_shaft_inbeam", "PLACE"], group="A"
+        )
         yield from bps.wait("A")
         print(f"Moving motor to safe position {safe_position}")
         yield from bps.mv(motor, safe_position)
@@ -56,15 +60,25 @@ def iterative_plan(node, n_iter, motor=OT_stage_3_X, safe_position=0.0):  # noqa
         yield from bps.mv(motor, load_position)
         yield from bps.wait()
         print("Returning sample to storage")
-        yield from bps.abs_set(node, ["holder_shaft_inbeam", "holder_shaft_storage", "RETURN_PICK_UP"], group="A")
+        yield from bps.abs_set(
+            node,
+            ["holder_shaft_inbeam", "holder_shaft_storage", "RETURN_PICK_UP"],
+            group="A",
+        )
         yield from bps.wait("A")
-        yield from bps.abs_set(node, ["holder_shaft_inbeam", "holder_shaft_storage", "RETURN_PLACE"], group="A")
+        yield from bps.abs_set(
+            node,
+            ["holder_shaft_inbeam", "holder_shaft_storage", "RETURN_PLACE"],
+            group="A",
+        )
         yield from bps.wait("A")
 
 
 if __name__ == "main":
     rclpy.init()
-    node = PickPlaceDevice(node_name="pick_place_device", action_client_name="erbos_pdf_pick_place_action")
+    node = PickPlaceDevice(
+        node_name="pick_place_device", action_client_name="erbos_pdf_pick_place_action"
+    )
     RE = RunEngine({})
     RE(iterative_plan(node))
     rclpy.shutdown()

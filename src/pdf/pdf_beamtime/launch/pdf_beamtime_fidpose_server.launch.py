@@ -10,8 +10,12 @@ def generate_launch_description():
         package="pdf_beamtime",
         executable="pdf_beamtime_fidpose_server",
         parameters=[
-            PathJoinSubstitution([FindPackageShare("pdf_beamtime"), "config", "obstacles.yaml"]),
-            PathJoinSubstitution([FindPackageShare("pdf_beamtime"), "config", "joint_poses.yaml"]),
+            PathJoinSubstitution(
+                [FindPackageShare("pdf_beamtime"), "config", "obstacles.yaml"]
+            ),
+            PathJoinSubstitution(
+                [FindPackageShare("pdf_beamtime"), "config", "joint_poses.yaml"]
+            ),
         ],
         output="screen",
     )

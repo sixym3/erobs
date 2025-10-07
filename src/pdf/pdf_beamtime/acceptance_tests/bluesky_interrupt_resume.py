@@ -42,12 +42,16 @@ def main(args=None):
 
     minimal_client = BlueskyInterrupt()
     pause_future_results = minimal_client.send_pause_request()
-    minimal_client.get_logger().info("Pause request results: " + str(pause_future_results))
+    minimal_client.get_logger().info(
+        "Pause request results: " + str(pause_future_results)
+    )
 
     time.sleep(10.0)
 
     resume_future_results = minimal_client.send_resume_request()
-    minimal_client.get_logger().info("Resume request results: " + str(resume_future_results))
+    minimal_client.get_logger().info(
+        "Resume request results: " + str(resume_future_results)
+    )
 
     minimal_client.destroy_node()
     rclpy.shutdown()

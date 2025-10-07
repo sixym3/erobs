@@ -29,7 +29,9 @@ class PickPlaceRepeatDevice(ActionMovable):
     def feedback_callback(self, feedback_msg):
         """Handle regular feedback and print the completion percentage."""
         feedback = feedback_msg.feedback
-        self.get_logger().info("Completion percentage: {0} %".format(math.ceil(feedback.status * 100)))
+        self.get_logger().info(
+            "Completion percentage: {0} %".format(math.ceil(feedback.status * 100))
+        )
 
     def get_result_callback(self, future: Future):
         """Handle results at the end of a state transition."""
@@ -43,7 +45,10 @@ def plan(node, joint_goals):
 
 rclpy.init()
 
-node = PickPlaceRepeatDevice(node_name="pdf_beamtime_control_device", action_client_name="pdf_beamtime_action_server")
+node = PickPlaceRepeatDevice(
+    node_name="pdf_beamtime_control_device",
+    action_client_name="pdf_beamtime_action_server",
+)
 
 joint_goals = {
     "pickup_approach": [1.466, -2.042, -2.1293, -2.164, -0.105, 0.0],

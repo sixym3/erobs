@@ -41,7 +41,7 @@ class ActionMovable(Node, Movable):
         start_parameter_services: bool = True,
         parameter_overrides: List[Parameter] = None,
         allow_undeclared_parameters: bool = False,
-        automatically_declare_parameters_from_overrides: bool = False
+        automatically_declare_parameters_from_overrides: bool = False,
     ) -> None:
         """Class init."""
         super().__init__(
@@ -89,7 +89,9 @@ class ActionMovable(Node, Movable):
     def _stop_spin_callback(self, future: Future):
         """Manage the execution of all other done Callabacks. This ensures a sensible ordering."""
         if not future.done():
-            self.get_logger().error("Somehow the stop spin callback was called before the future was done...")
+            self.get_logger().error(
+                "Somehow the stop spin callback was called before the future was done..."
+            )
 
         self.get_result_callback(future)
 
@@ -140,11 +142,17 @@ class ActionMovable(Node, Movable):
             goal_msg = self.construct_goal_mesage(goal)
 
         if not isinstance(goal_msg, self.action_type.Goal):
-            raise TypeError("Goal must be of type {}. Received type {}".format(self.action_type.Goal, type(goal_msg)))
+            raise TypeError(
+                "Goal must be of type {}. Received type {}".format(
+                    self.action_type.Goal, type(goal_msg)
+                )
+            )
 
         self._action_client.wait_for_server(timeout_sec=10.0)
         self.get_logger().info("Sending goal request...")
-        self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_msg, feedback_callback=self.feedback_callback
+        )
         self._send_goal_future.add_done_callback(self._goal_response_callback)
 
     """

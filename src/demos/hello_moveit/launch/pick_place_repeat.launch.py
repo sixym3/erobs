@@ -9,8 +9,18 @@ def generate_launch_description():
         package="hello_moveit",
         executable="pick_place_repeat_action_server",
         parameters=[
-            PathJoinSubstitution([FindPackageShare("hello_moveit"), "config", "pick_place_repeat_params.yaml"]),
-            {"waypoints_file": PathJoinSubstitution([FindPackageShare("hello_moveit"), "config", "waypoints.yaml"])},
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("hello_moveit"),
+                    "config",
+                    "pick_place_repeat_params.yaml",
+                ]
+            ),
+            {
+                "waypoints_file": PathJoinSubstitution(
+                    [FindPackageShare("hello_moveit"), "config", "waypoints.yaml"]
+                )
+            },
         ],
         output="screen",
     )

@@ -14,8 +14,16 @@ def generate_launch_description():
                 name="aruco_pose",
                 output="screen",
                 parameters=[
-                    PathJoinSubstitution([FindPackageShare("aruco_pose"), "config", "camera_param.yaml"]),
-                    PathJoinSubstitution([FindPackageShare("aruco_pose"), "config", "fiducial_marker_param.yaml"]),
+                    PathJoinSubstitution(
+                        [FindPackageShare("aruco_pose"), "config", "camera_param.yaml"]
+                    ),
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("aruco_pose"),
+                            "config",
+                            "fiducial_marker_param.yaml",
+                        ]
+                    ),
                 ],
             )
         ]

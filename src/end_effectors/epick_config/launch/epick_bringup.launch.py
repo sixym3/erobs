@@ -23,9 +23,11 @@ def generate_launch_description():
         ],
     )
 
-    return LaunchDescription([
-        parent_arg,
-        port_arg,
-        fake_arg,
-        controller,
-    ])
+    return LaunchDescription(
+        [
+            parent_arg,
+            port_arg,
+            fake_arg,
+            controller,
+        ]
+    )

@@ -45,7 +45,9 @@ def plan(node, det, motor):
 
 rclpy.init()
 
-node = PickPlaceRepeatDevice(node_name="pick_place_repeat_device", action_client_name="pick_place_repeat")
+node = PickPlaceRepeatDevice(
+    node_name="pick_place_repeat_device", action_client_name="pick_place_repeat"
+)
 
 RE = RunEngine({})
 RE(plan(node, det1, motor1))

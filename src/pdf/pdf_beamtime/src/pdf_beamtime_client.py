@@ -16,7 +16,9 @@ class SimpleClient(Node):
     def __init__(self):
         """Python init."""
         super().__init__("pdf_beamtime_client")
-        self._action_client = ActionClient(self, PickPlaceControlMsg, "pdf_beamtime_action_server")
+        self._action_client = ActionClient(
+            self, PickPlaceControlMsg, "pdf_beamtime_action_server"
+        )
         self._goal_handle = None
 
     def send_pickup_goal(self):
@@ -36,12 +38,16 @@ class SimpleClient(Node):
         goal_msg.place = [x / 180 * math.pi for x in goal_msg.place]
 
         self._action_client.wait_for_server()
-        self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_msg, feedback_callback=self.feedback_callback
+        )
 
     def feedback_callback(self, feedback_msg):
         """Display the feedback."""
         feedback = feedback_msg.feedback
-        self.get_logger().info("Completion percentage: {0} %".format(math.ceil(feedback.status * 100)))
+        self.get_logger().info(
+            "Completion percentage: {0} %".format(math.ceil(feedback.status * 100))
+        )
 
     def goal_response_callback(self, future):
         """Send a cancellation after 15 seconds."""
@@ -67,7 +73,9 @@ class SimpleClient(Node):
         goal_msg.place = [x / 180 * math.pi for x in goal_msg.place]
 
         self._action_client.wait_for_server()
-        self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_msg, feedback_callback=self.feedback_callback
+        )
 
 
 def main(args=None):
